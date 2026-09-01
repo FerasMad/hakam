@@ -24,18 +24,29 @@ Given a foul incident filmed from multiple camera angles, Hakam:
 ## Pipeline
 
 ```
-multi-view clip
-  → frame sampling (frames 63–87 @ 17fps)
-  → frozen video backbone, embeddings cached to disk
-  → cascade of binary heads:  foul? → card? → yellow/red?
-  → JSON contract  { severity, foul_type, contact_point, confidence }
-  → retrieval over Laws of the Game
-  → Arabic explanation
+   multi-view clip
+        |
+        v  frame sampling (frames 63-87 @ 17fps)
+        v  frozen video backbone, embeddings cached to disk
+        v  multi-view pooling
+        v  cascade:  offence?  ->  card?  ->  yellow / red?
+        |
+   =====|=====  contract boundary
+        v
+   HakamContract (JSON)  { labels + confidences only }
+        |
+        v  FAISS retrieval over the Laws of the Game
+        v  Claude
+        |
+        v
+   Arabic explanation
 ```
 
 **Design note.** The language model never sees the video. It receives only the
 JSON contract, so it cannot assert a visual detail the classifier did not
 produce. Grounding is enforced by construction, not by prompting.
+
+Full diagrams: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
 ## Data
 
