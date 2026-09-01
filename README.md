@@ -48,6 +48,43 @@ produce. Grounding is enforced by construction, not by prompting.
 
 Full diagrams: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
+## Tech stack
+
+### Models
+
+| Role | Model | Notes |
+|---|---|---|
+| CV baseline | **MViT-v2-S** (torchvision) | Reproduces the published SoccerNet-MVFoul result. Pretrained on Kinetics-400 |
+| CV experiment | **VideoMAE** — `MCG-NJU/videomae-base-finetuned-kinetics` | Self-supervised video pretraining, stronger in the small-data regime (3,901 clips) |
+| CV iteration | `MCG-NJU/videomae-small-finetuned-kinetics` | Faster variant for hyperparameter sweeps |
+| LLM | **Claude** (`claude-sonnet-5`) | Generates the Arabic explanation from the contract |
+| Embeddings | multilingual sentence-transformer | Must handle Arabic — see open question below |
+
+The backbone stays **frozen**. Embeddings are computed once and cached to disk; only the
+pooling layer and the cascade heads are trained. On 3,901 samples this usually beats full
+fine-tuning, and it turns each experiment from hours into seconds.
+
+### Infrastructure
+
+| Layer | Tool |
+|---|---|
+| Deep learning | PyTorch |
+| Video decoding | PyAV |
+| Dataset download | `SoccerNet` package |
+| Vector search | FAISS (CPU — the Laws corpus is small) |
+| Metrics | scikit-learn — balanced accuracy, macro-F1, confusion matrix |
+| Prototype UI | Streamlit |
+| Experiment tracking | MLflow |
+| Compute | Colab / Kaggle free tier |
+
+### Open decision
+
+The retrieval embedding model **must support Arabic**. Default sentence-transformers models are
+English-only and will return irrelevant articles on an Arabic corpus. `intfloat/multilingual-e5-base`
+is the leading candidate; test it against a handful of Law articles early. If Arabic retrieval
+quality is poor, the fallback is retrieving over the English Laws and generating the Arabic
+explanation from the retrieved English text.
+
 ## Data
 
 The dataset is **not** in this repository and cannot be redistributed.
