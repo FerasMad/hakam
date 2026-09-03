@@ -37,9 +37,20 @@ SPLIT_SIZES = {"train": 2916, "valid": 411, "test": 301, "challenge": 273}
 # clip dilutes the signal; this window is where the incident actually happens.
 # --------------------------------------------------------------------------
 
-START_FRAME = 63
-END_FRAME = 87
-FPS = 17
+# Measured 2 Sep 2026 (scripts/diagnose_features.py, 100 actions):
+# the published 63-87 window spans only 0.96 s at 25 fps, so 16 frames drawn
+# from it are near-duplicates. 43-107 is 64 frames = 2.56 s, centred on the
+# incident at frame 75, which reproduces VideoMAE's 16-frames-at-stride-4
+# Kinetics pretraining. It won on every measurement (camera probe 0.939 vs
+# 0.908). The narrow window is kept for comparison against the published
+# baseline.
+START_FRAME = 43
+END_FRAME = 107
+
+PUBLISHED_WINDOW = (63, 87)   # SoccerNet-MVFoul baseline, for reference
+FPS = 17                 # the baseline's resampling flag; recorded for
+                         # provenance only. Extraction subsamples NUM_FRAMES
+                         # uniformly across the window and never uses this.
 NUM_FRAMES = 16          # frames fed to the backbone after subsampling
 FRAME_SIZE = 224
 
@@ -48,7 +59,8 @@ FRAME_SIZE = 224
 # --------------------------------------------------------------------------
 
 BACKBONES = {
-    # Baseline: reproduces the published result.
+    # Baseline: reproduces the published result. Needs torchvision, which is
+    # absent locally - this backbone runs on Colab only.
     "mvit_v2_s": {"source": "torchvision", "name": "mvit_v2_s", "dim": 768},
     # Experiment 1: stronger self-supervised video pretraining.
     "videomae_base": {
@@ -111,6 +123,24 @@ AUXILIARY_HEADS = [
 # dataset's annotations.json once downloaded and mapped here. Do not hardcode
 # guessed label strings — confirm them against the file.
 RAW_LABEL_VOCAB: dict[str, list[str]] = {}
+
+# --------------------------------------------------------------------------
+# Feasibility pilot
+#
+# Frozen Kinetics features may simply not encode what separates a foul from a
+# fair challenge - Kinetics recognises "playing soccer", not contact intensity.
+# The pilot probes that on a subsample before committing to a full extraction.
+#
+# 500, not 200: stage 2 supervision covers ~69% of actions, so 200 actions leave
+# only ~138 probe samples, where a several-hundred-dimensional logistic head
+# overfits and returns noise. 500 yields ~345.
+# --------------------------------------------------------------------------
+
+PILOT_N = 500
+PILOT_BACKBONE = "videomae_small"
+PILOT_GO_THRESHOLD = 0.58    # stage-2 balanced accuracy needed to proceed
+PILOT_SANITY_THRESHOLD = 0.70  # 'contact' probe; below this, suspect preprocessing
+PILOT_PERMUTATIONS = 100
 
 # --------------------------------------------------------------------------
 # Confidence gating

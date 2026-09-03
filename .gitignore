@@ -9,3 +9,11 @@ venv/
 *.ckpt
 features_cache/
 .DS_Store
+
+# Pilot/training outputs. The CSVs carry dataset annotations, which the NDA
+# covers - keep them local.
+artifacts/
+
+# Laws of the Game source PDF is copyrighted; the curated corpus is committed,
+# the original is not.
+laws/*.pdf
