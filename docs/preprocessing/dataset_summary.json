@@ -1,0 +1,57 @@
+{
+  "settings": {
+    "started_at": "2026-09-03T17:18:57Z",
+    "git_commit": "4af0cf1",
+    "pipeline_version": "1.0",
+    "mode": "metadata",
+    "ambiguity_policy": "stagewise-drop",
+    "window": [
+      43,
+      107
+    ],
+    "num_frames": 16,
+    "seed": 42,
+    "splits": [
+      "train",
+      "valid",
+      "test"
+    ],
+    "finished_at": "2026-09-03T17:20:03Z",
+    "elapsed_seconds": 66.2
+  },
+  "splits": [
+    {
+      "split": "train",
+      "actions": 2916,
+      "actions_official": 2916,
+      "clips": 6621,
+      "clips_valid": 6621,
+      "multiview_actions": 2916,
+      "ambiguous": 541,
+      "conflicts": 0,
+      "excluded": 1
+    },
+    {
+      "split": "valid",
+      "actions": 411,
+      "actions_official": 411,
+      "clips": 970,
+      "clips_valid": 970,
+      "multiview_actions": 411,
+      "ambiguous": 85,
+      "conflicts": 0,
+      "excluded": 0
+    },
+    {
+      "split": "test",
+      "actions": 301,
+      "actions_official": 301,
+      "clips": 706,
+      "clips_valid": 706,
+      "multiview_actions": 301,
+      "ambiguous": 49,
+      "conflicts": 0,
+      "excluded": 0
+    }
+  ]
+}

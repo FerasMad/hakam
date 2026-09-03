@@ -348,6 +348,7 @@ def write_reports(
     unknown: list[dict],
     duplicates: pd.DataFrame,
     settings: dict,
+    leak: bool = False,
 ) -> None:
     PRIVATE_DIR.mkdir(parents=True, exist_ok=True)
     SUMMARY_DIR.mkdir(parents=True, exist_ok=True)
@@ -432,6 +433,23 @@ def write_reports(
         encoding="utf-8",
     )
 
+    # Figures and the written report. Imported here rather than at module level
+    # so a headless run that only needs manifests does not pay for matplotlib.
+    from src.data import reports
+
+    settings_with_splits = {**settings, "splits": split_rows}
+    reports.plot_class_distribution(
+        all_actions, SUMMARY_DIR / "class_distribution.png"
+    )
+    reports.write_markdown_report(
+        all_actions, all_clips, unknown, duplicates, leak,
+        settings_with_splits, SUMMARY_DIR / "preprocessing_report.md",
+    )
+    # Restricted: decoded frames from the dataset itself.
+    grid = reports.make_sample_grid(all_clips, PRIVATE_DIR / "sample_grid.png")
+    if grid is None:
+        print("sample grid skipped - no decodable clips available")
+
 
 # --------------------------------------------------------------------------
 # CLI
@@ -503,7 +521,7 @@ def main() -> int:
 
     settings["finished_at"] = _now()
     settings["elapsed_seconds"] = round(time.time() - t0, 1)
-    write_reports(actions, clips, unknown, duplicates, settings)
+    write_reports(actions, clips, unknown, duplicates, settings, leak)
 
     print("\ncascade supervision:")
     for split, frame in actions.items():
