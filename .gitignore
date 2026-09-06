@@ -17,3 +17,7 @@ artifacts/
 # Laws of the Game source PDF is copyrighted; the curated corpus is committed,
 # the original is not.
 laws/*.pdf
+
+# Pretrained detector weights, downloaded on demand
+yolov8n.pt
+*.pt

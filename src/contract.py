@@ -55,6 +55,11 @@ class HakamContract:
     # Auxiliary attributes, used to make the explanation concrete.
     attributes: dict[str, Prediction] = field(default_factory=dict)
 
+    # Observations from a pretrained detector, when one was available. These
+    # are measurements, not decisions - the detector counts players, it does
+    # not judge fouls. Optional: None whenever detection did not run.
+    scene: Any | None = None
+
     # Provenance, so any generated text can be traced back to a specific run.
     model_version: str = "unset"
     num_views: int = 0
@@ -101,6 +106,10 @@ class HakamContract:
             if pred is not None:
                 values.add(pred.label)
         values.update(pred.label for pred in self.attributes.values())
+        # Detector observations are citable too, otherwise the faithfulness
+        # check would flag a true statement about player count as invented.
+        if self.scene is not None and hasattr(self.scene, "citable_values"):
+            values.update(self.scene.citable_values())
         return values
 
     def to_dict(self) -> dict[str, Any]:
