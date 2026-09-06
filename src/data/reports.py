@@ -109,7 +109,7 @@ def make_sample_grid(clips: pd.DataFrame, out: Path, n: int = 8) -> Path | None:
         return None
 
     picks = (
-        usable.groupby("camera_type", group_keys=False)
+        usable.groupby("camera_type_raw", group_keys=False)
         .head(2)
         .head(n)
         .reset_index(drop=True)
@@ -132,10 +132,10 @@ def make_sample_grid(clips: pd.DataFrame, out: Path, n: int = 8) -> Path | None:
             ax.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         else:
             ax.text(0.5, 0.5, "decode failed", ha="center", va="center")
-        camera = str(row["camera_type"])[:28]
+        camera = str(row["camera_type_raw"])[:28]
         ax.set_title(
             f"{row['action_key']}  clip {row['clip_index']}\n"
-            f"{camera}  x{row['replay_speed']}",
+            f"{camera}  x{row['replay_speed_raw']}",
             fontsize=7,
         )
         ax.axis("off")

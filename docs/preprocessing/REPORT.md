@@ -1,6 +1,6 @@
 # Preprocessing report - Hakam
 
-Generated 2026-09-03T17:20:03Z from commit `4af0cf1`, pipeline v1.0, in 66.2s.
+Generated 2026-09-06T13:13:03Z from commit `0142d08`, pipeline v1.0, in 409.4s.
 
 Aggregate statistics only. Row-level manifests stay under `artifacts/preprocessing/private/` and are never committed or shared - they carry match identifiers and local paths.
 
@@ -68,7 +68,7 @@ Stage 1 is roughly 9:1 toward offence, so a model answering offence every time s
 
 - Sampling window: frames **43-107** (2.56s at 25fps), **16** frames
 - Ambiguity policy: `stagewise-drop`
-- Seed: `42`, mode: `metadata`
+- Seed: `42`, mode: `full`
 
 The window was measured, not inherited. The published baseline's 63-87 spans 0.96s, so 16 frames drawn from it are near-duplicates and the backbone sees an almost still image. 43-107 reproduces the 16-frames-at-stride-4 sampling the backbone was pretrained with, and won on every diagnostic measurement.
 

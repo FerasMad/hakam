@@ -246,9 +246,9 @@ def build_split(
                 "annotated_url": clip.get("Url"),
                 "resolved_path": str(path),
                 "path": str(path),                       # legacy column name
-                "camera_type": clip.get("Camera type", ""),
+                "camera_type_raw": clip.get("Camera type", ""),
                 "timestamp_raw": clip.get("Timestamp"),
-                "replay_speed": clip.get("Replay speed"),
+                "replay_speed_raw": clip.get("Replay speed"),
                 "file_exists": info["file_exists"],
                 "file_size_bytes": info["file_size_bytes"],
                 "decodable": info["decodable"],
@@ -277,6 +277,12 @@ def build_split(
             "include_multiview": valid_clips >= 2,
         }
         row.update({f"{f}_raw": record.get(f) for f in ACTION_RAW_FIELDS})
+        # Section 5.1 names these three in snake_case. Same values, contract
+        # spelling, so a reviewer checking the manifest against the written
+        # data contract finds what it promises.
+        row["offence_raw"] = record.get("Offence")
+        row["severity_raw"] = record.get("Severity")
+        row["action_class_raw"] = record.get("Action class")
         row.update(targets.as_dict())
         row["quality_codes"] = "|".join(codes)
         # Legacy plain-named columns that the existing scripts read.
@@ -389,6 +395,17 @@ def write_reports(
             "pipeline_version": PIPELINE_VERSION,
         })
     pd.DataFrame(exclusions).to_csv(PRIVATE_DIR / "exclusions.csv", index=False)
+
+    # Written empty on purpose. Section 13 requires the file; a manual label
+    # override is only valid with provenance, and no record has been
+    # adjudicated by a qualified reviewer. Preprocessing does not create
+    # expert labels.
+    overrides = PRIVATE_DIR / "label_overrides.csv"
+    if not overrides.exists():
+        pd.DataFrame(columns=[
+            "action_key", "clip_index", "field", "raw_value", "reviewed_value",
+            "reviewer", "reviewed_at", "rationale",
+        ]).to_csv(overrides, index=False)
 
     # ---- Aggregates, safe to share ----------------------------------------
     split_rows, supervision_rows, distribution_rows = [], [], []

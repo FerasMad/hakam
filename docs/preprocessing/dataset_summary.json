@@ -1,9 +1,9 @@
 {
   "settings": {
-    "started_at": "2026-09-03T17:18:57Z",
-    "git_commit": "4af0cf1",
+    "started_at": "2026-09-06T13:06:14Z",
+    "git_commit": "0142d08",
     "pipeline_version": "1.0",
-    "mode": "metadata",
+    "mode": "full",
     "ambiguity_policy": "stagewise-drop",
     "window": [
       43,
@@ -16,8 +16,8 @@
       "valid",
       "test"
     ],
-    "finished_at": "2026-09-03T17:20:03Z",
-    "elapsed_seconds": 66.2
+    "finished_at": "2026-09-06T13:13:03Z",
+    "elapsed_seconds": 409.4
   },
   "splits": [
     {
