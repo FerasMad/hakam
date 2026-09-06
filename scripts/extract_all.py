@@ -45,8 +45,14 @@ def extract_split(
     batch_size: int,
     pooling: str,
     force: bool,
+    augment=None,
 ) -> None:
-    cache = fx.cache_path(backbone, tag=split)
+    from src.data import transforms as tfm
+
+    # Distinct cache identity per recipe, so an augmented set can never be
+    # mistaken for the clean baseline in a comparison (section 16).
+    tag = tfm.cache_tag(split, augment)
+    cache = fx.cache_path(backbone, tag=tag)
     if cache.exists() and not force:
         print(f"[{split}] cache exists, skipping ({cache.name})")
         return
@@ -73,11 +79,13 @@ def extract_split(
         start=config.START_FRAME,
         end=config.END_FRAME,
         pooling=pooling,
+        augment=augment,
+        split=split,
     )
     elapsed = time.time() - t0
 
     keys = [fx.clip_key(a, i) for a, i in zip(clips["action_id"], clips["clip_index"])]
-    path = fx.save_cache(keys, feats, backbone, tag=split)
+    path = fx.save_cache(keys, feats, backbone, tag=tag)
 
     # Without these settings the cache is not reusable - the window has already
     # changed once in this project.
@@ -91,6 +99,7 @@ def extract_split(
                 "end_frame": config.END_FRAME,
                 "num_frames": config.NUM_FRAMES,
                 "pooling": pooling,
+                "augment": tfm.describe(augment),
                 "n_clips": int(feats.shape[0]),
                 "dim": int(feats.shape[1]),
             },
@@ -111,13 +120,20 @@ def main() -> None:
     ap.add_argument("--batch-size", type=int, default=8)
     ap.add_argument("--pooling", default="mean", choices=["mean", "fc_norm"])
     ap.add_argument("--force", action="store_true", help="re-extract even if cached")
+    ap.add_argument("--augment", default=None, choices=["mild_aug_v1"],
+                    help="training augmentation recipe; train split only")
     args = ap.parse_args()
+
+    from src.data import transforms as tfm
+
+    augment = tfm.MILD_V1 if args.augment == "mild_aug_v1" else None
 
     print(
         f"window {config.START_FRAME}-{config.END_FRAME} "
         f"({(config.END_FRAME - config.START_FRAME) / 25:.2f} s at 25 fps), "
         f"{config.NUM_FRAMES} frames, pooling={args.pooling}"
     )
+    print(f"augmentation: {tfm.describe(augment)}")
     print(f"device: {fx.resolve_device()}\n")
 
     for backbone in args.backbones:
@@ -125,7 +141,8 @@ def main() -> None:
         extractor = fx.build_extractor(backbone)
         for split in args.splits:
             extract_split(
-                split, extractor, backbone, args.batch_size, args.pooling, args.force
+                split, extractor, backbone, args.batch_size, args.pooling,
+                args.force, augment,
             )
         print()
 

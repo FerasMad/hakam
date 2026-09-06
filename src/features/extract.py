@@ -221,12 +221,20 @@ def extract_clips(
     end: int = config.END_FRAME,
     pooling: str = "mean",
     progress: bool = True,
+    augment=None,
+    split: str = "train",
+    seed: int = config.SEED,
 ) -> np.ndarray:
     """Embed each clip as one vector. Returns ``(len(paths), dim)`` float32.
 
     ``pooling`` is ``"mean"`` (mean over spatiotemporal tokens) or ``"fc_norm"``
     (the same mean, then the checkpoint's own LayerNorm - what the pretrained
     classifier actually consumed).
+
+    ``augment`` is an optional ``AugmentSpec``. It is applied per clip, at
+    extraction time, and never written to disk - section 16. The transform
+    module refuses to augment anything but the train split, so passing a spec
+    with ``split="valid"`` is a no-op rather than a silent contamination.
     """
     processor, model, device, fc_norm = extractor
     if pooling == "fc_norm" and fc_norm is None:
@@ -239,9 +247,20 @@ def extract_clips(
 
         rng = tqdm(rng, desc=f"extract[{pooling}]", unit="batch")
 
+    from src.data import transforms as tfm
+
     for i in rng:
         chunk = paths[i : i + batch_size]
-        videos = [list(sample_window(p, start=start, end=end)) for p in chunk]
+        videos = []
+        for offset, path in enumerate(chunk):
+            # Seeded per clip index so a run is reproducible, and so two clips
+            # in one batch do not share a crop.
+            clip_rng = np.random.default_rng(seed + i + offset)
+            lo, hi = tfm.jittered_window(augment, split, clip_rng, 10 ** 6, start, end)
+            frames = sample_window(path, start=lo, end=hi)
+            params = tfm.build_params(augment, split, clip_rng, frames.shape[1:3])
+            videos.append(list(tfm.apply_clip(frames, params)))
+
         inputs = processor(videos, return_tensors="pt")
         inputs = {k: v.to(device) for k, v in inputs.items()}
 
