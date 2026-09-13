@@ -21,3 +21,5 @@ laws/*.pdf
 # Pretrained detector weights, downloaded on demand
 yolov8n.pt
 *.pt
+
+frame_cache/
