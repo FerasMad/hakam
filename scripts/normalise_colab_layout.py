@@ -21,6 +21,7 @@ push and re-run with one line, instead of being hand-edited inside Colab.
 
 from __future__ import annotations
 
+import os
 import shutil
 import sys
 import zipfile
@@ -31,6 +32,27 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src import config
 
 SPLITS = {"Train": "train", "Valid": "valid", "Test": "test"}
+
+# The archives are WinZip-AES encrypted (compression method 99). The standard
+# library cannot read that even with the right password - zipfile only supports
+# legacy ZipCrypto - so pyzipper does the work when it is installed.
+try:
+    import pyzipper
+
+    _ZIP = pyzipper.AESZipFile
+except ImportError:
+    pyzipper = None
+    _ZIP = zipfile.ZipFile
+
+
+def _password() -> bytes | None:
+    """NDA password from the environment, never from a flag.
+
+    A command-line argument would land in shell history and in the notebook
+    output. The caller exports SOCCERNET_PASSWORD instead.
+    """
+    pw = os.environ.get("SOCCERNET_PASSWORD", "").strip()
+    return pw.encode() if pw else None
 
 
 def show_layout(root: Path, limit: int = 40) -> None:
@@ -63,12 +85,13 @@ def place_split(root: Path, proper: str, lower: str) -> bool:
     archive = find_archive(root, lower)
     if archive is not None:
         target.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(archive) as zf:
-            try:
-                zf.extractall(target)
-            except RuntimeError as exc:
-                print(f"{proper}: {archive.name} appears encrypted ({exc})")
-                return False
+        try:
+            with _ZIP(archive) as zf:
+                zf.extractall(target, pwd=_password())
+        except RuntimeError as exc:
+            hint = "" if pyzipper else "  (pip install pyzipper for AES archives)"
+            print(f"{proper}: could not extract {archive.name}: {exc}{hint}")
+            return False
         print(f"{proper}: extracted {archive.name}")
 
         # Some archives carry their own top-level folder, which would leave

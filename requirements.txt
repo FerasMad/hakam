@@ -30,3 +30,4 @@ seaborn>=0.13
 
 # Config
 python-dotenv>=1.0
+pyzipper>=0.3
