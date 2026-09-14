@@ -1,6 +1,6 @@
 # حكم (Hakam) — project handoff
 
-Paste this into a fresh session to resume. Written 6 Sep 2026.
+Paste this into a fresh session to resume. Updated 14 Sep 2026.
 Presentation ~16 Sep 2026. Team: Feras, Anas, Bader.
 
 ---
@@ -32,18 +32,15 @@ the Game and writes an Arabic explanation of the decision.
 
 ---
 
-## 2. Current state (verified 6 Sep 2026)
+## 2. Current state (verified 14 Sep 2026)
 
 | Track | State |
 |---|---|
 | **Preprocessing** | **Complete.** Spec closed, 78 tests passing |
 | **CV model** | Feature extraction built; **heads not written** |
-| **LLM half** | **Zero.** `laws/` is empty, `src/llm/` is empty |
-| **§10 integration** | **Zero** — the main risk |
-| **App / report / slides** | Zero |
-
-12 commits. Uncommitted: `src/features/detect.py` (optional YOLO module) and a
-`scene` field added to the contract.
+| **LLM half** | **Complete against `mock_contract()`.** Corpus, retrieval, OpenAI generation, guardrails, evaluation, and manual audit are implemented |
+| **§10 integration** | Contract boundary is implemented and tested; swap the real CV output in for `mock_contract()` |
+| **App / report / slides** | LLM report complete; app and slides not assessed here |
 
 **Blocking:** the Colab feature cache was produced but never downloaded from
 Drive. `features_cache/` holds only `pilot500__videomae_small.npz`. Nothing can
@@ -53,7 +50,7 @@ train until the real caches are local.
 
 ## 3. Dataset
 
-**SoccerNet-MVFoul.** NDA signed with KAUST. Password `s0cc3rn3t` — held in a
+**SoccerNet-MVFoul.** NDA signed with KAUST. Access credentials are held only in a
 Colab secret named `SOCCERNET_PASSWORD`, never in a file.
 
 | Split | Actions | Clips | Labelled |
@@ -250,19 +247,20 @@ what makes three people work in parallel.
 
 ---
 
-## 9. LLM half — not built
+## 9. LLM half — complete against mock contracts
 
-1. **Laws of the Game PDF into `laws/`.** Verify it has a real text layer, not
-   scanned images. **This is the single blocker for the whole track.**
-2. **Curate, do not chunk blindly.** Law 12 (fouls and misconduct) + Law 5
-   (referee) + definitions → 30–50 chunks. A hand-built corpus beats splitting
-   140 pages.
-3. **Arabic embedding unchosen.** Candidate: `intfloat/multilingual-e5-base`.
-   Default sentence-transformers are English-only and will retrieve badly.
-4. **Faithfulness metric is currently vaporware.** `citable_values()` returns
-   English labels while output is Arabic. Needs an Arabic surface-form lexicon
-   (~40 terms: `tackling → تدخل`, `yellow → إنذار`). Until it lands, describe it
-   honestly as a manual audit of ~50 samples.
+1. `laws/corpus.json` contains 47 curated bilingual chunks from Law 12, Law 5,
+   and relevant definitions. Both official PDFs were verified to have text layers.
+2. Retrieval combines contract-tag overlap with `intfloat/multilingual-e5-base`;
+   passage embeddings are cached locally.
+3. `gpt-5-nano` generates the Arabic explanation from contract JSON and retrieved
+   articles only. V2 enforces a safe draft, semantic checks, repair, and fallback.
+4. Final 24-case results: v1 faithfulness 0.710; v2 1.000, zero unsupported label
+   claims, 100% correct abstention, and 100% low-confidence hedging.
+5. Ten v2 outputs were manually audited and passed after the final guardrails.
+
+See `docs/llm/REPORT.md`. Run `python scripts/demo_llm.py` for the mock-contract
+demo and `python scripts/eval_llm.py` to regenerate the local evaluation CSVs.
 
 ---
 
@@ -379,14 +377,11 @@ Colab: <https://colab.research.google.com/github/FerasMad/hakam/blob/main/notebo
 ## 15. What is left, in priority order
 
 1. **Download the feature cache from Drive** — blocks everything on the CV side.
-2. **Laws of the Game PDF into `laws/`** — blocks the entire LLM track. One
-   download, and Anas is unblocked for days of parallel work.
-3. Cascade heads on cached features → baseline, with the stage named.
-4. Fine-tune (Experiment 1) — the only change likely to move the number.
-5. Retrieval + prompts against `mock_contract()`.
-6. Evaluation harness: PR curves, threshold at target recall, review load.
-7. Real integration on the **test split — touched once, in that step only**.
-8. Streamlit app, report (§16), 10–12 slides, impact card, backup demo video.
+2. Cascade heads on cached features → baseline, with the stage named.
+3. Fine-tune (Experiment 1) — the only change likely to move the number.
+4. Evaluation harness: PR curves, threshold at target recall, review load.
+5. Feed the real CV `HakamContract` into the completed LLM layer on the **test
+   split — touched once, in that step only**.
+6. Streamlit app, full report (§16), 10–12 slides, impact card, backup demo video.
 
-**Biggest risk:** ten days, and the half of the project that decides the grade has
-not been started. The Laws PDF is the cheapest unblock available.
+**Biggest remaining risk:** the real CV model and end-to-end test integration.
