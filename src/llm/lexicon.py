@@ -85,16 +85,14 @@ LEXICON: dict[str, set[str]] = {
     "without contact": {"بدون تماس", "دون احتكاك", "لا يوجد تماس"},
 
     # ---- try to play / touch ball ---------------------------------------
-    "try_to_play_yes": {"محاولة لعب الكرة", "حاول لعب الكرة", "قصد الكرة"},
-    "try_to_play_no": {"دون محاولة لعب الكرة", "لم يحاول لعب الكرة"},
-    "touch_ball_yes": {"لمس الكرة", "مس الكرة", "وصل إلى الكرة"},
-    "touch_ball_no": {"لم يلمس الكرة", "دون لمس الكرة"},
-
-    # Bare yes/no, as the contract's auxiliary attributes emit them. Which
-    # attribute is meant is not recoverable from the value alone, so both
-    # readings are accepted rather than guessing.
-    "yes": {"نعم", "محاولة لعب الكرة", "حاول لعب الكرة", "لمس الكرة", "مس الكرة"},
-    "no": {"لا", "دون محاولة لعب الكرة", "لم يحاول لعب الكرة", "لم يلمس الكرة"},
+    # The contract emits these attributes as bare yes/no, so they are keyed
+    # that way. Separate try_to_play_* / touch_ball_* keys duplicated the same
+    # phrases, and a phrase matched under a key the contract never emits was
+    # scored as an unsupported claim.
+    "yes": {"محاولة لعب الكرة", "حاول لعب الكرة", "قصد الكرة",
+            "لمس الكرة", "مس الكرة", "وصل إلى الكرة"},
+    "no": {"دون محاولة لعب الكرة", "لم يحاول لعب الكرة",
+           "لم يلمس الكرة", "دون لمس الكرة"},
 
     # ---- abstention ------------------------------------------------------
     "refer": {"يحتاج مراجعة", "مراجعة بشرية", "غير مؤكد", "يحال إلى الحكم"},
@@ -126,23 +124,57 @@ def arabic_forms(label: str) -> set[str]:
     return set()
 
 
-def mentions(text: str, label: str) -> bool:
-    """True when ``text`` states ``label`` in any accepted Arabic form."""
-    forms = _NORMALISED.get(_key(label))
-    if not forms:
-        return False
-    haystack = normalise(text)
-    return any(form and form in haystack for form in forms)
+_PREFIXES = ("وال", "بال", "فال", "ال", "و", "ب", "ف", "ل")
+_SHORT = 3
+
+
+def _strip_prefix(token: str) -> str:
+    for pre in _PREFIXES:
+        if token.startswith(pre) and len(token) - len(pre) >= 2:
+            return token[len(pre):]
+    return token
+
+
+# Every (form, label) pair, longest first. Longer phrases are matched and masked
+# before shorter ones, so "لا تستوجب بطاقة" counts as no_card only - not also as
+# card via the "بطاقة" inside it.
+_FORMS: list[tuple[str, str]] = sorted(
+    ((form, label) for label, forms in _NORMALISED.items() for form in forms if form),
+    key=lambda pair: -len(pair[0]),
+)
 
 
 def found_labels(text: str) -> set[str]:
-    """Every label the text appears to assert. Used by the faithfulness check."""
+    """Every label the text asserts. Used by the faithfulness check.
+
+    Two rules keep this from over-matching:
+    - longest phrase wins, and its span is masked before shorter forms are tried;
+    - forms of three letters or fewer must match a whole word (after stripping
+      prefixes like ال / و / ب), otherwise "لا" would match inside "الأخطاء".
+    """
     haystack = normalise(text)
-    return {
-        label
-        for label, forms in _NORMALISED.items()
-        if any(form and form in haystack for form in forms)
-    }
+    found: set[str] = set()
+    for form, label in _FORMS:
+        if len(form) > _SHORT:
+            if form in haystack:
+                found.add(label)
+                haystack = haystack.replace(form, " " * len(form))
+        else:
+            tokens = haystack.split(" ")
+            hit = False
+            for i, tok in enumerate(tokens):
+                if tok and (tok == form or _strip_prefix(tok) == form):
+                    tokens[i] = " " * len(tok)
+                    hit = True
+            if hit:
+                found.add(label)
+                haystack = " ".join(tokens)
+    return found
+
+
+def mentions(text: str, label: str) -> bool:
+    """True when ``text`` states ``label`` in any accepted Arabic form."""
+    return _key(label) in found_labels(text)
 
 
 def missing_labels(values) -> set[str]:
