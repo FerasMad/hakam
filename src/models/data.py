@@ -94,19 +94,22 @@ class FoulDataset(Dataset):
         stage: str = "card",
         geometry_mode: str = "crop",
         augment: tfm.AugmentSpec | None = None,
+        cache_tag: str | None = None,
     ):
         if stage not in STAGES:
             raise ValueError(f"unknown stage {stage!r}; use one of {list(STAGES)}")
 
-        frames_path = CACHE_DIR / f"{split}_frames.npy"
+        suffix = f"_{cache_tag}" if cache_tag else ""
+        frames_path = CACHE_DIR / f"{split}_frames{suffix}.npy"
         if not frames_path.exists():
             raise FileNotFoundError(
                 f"no frame cache at {frames_path}. Run: "
                 f"python scripts/cache_frames.py --splits {split}"
+                + (f" --tag {cache_tag}" if cache_tag else "")
             )
 
         self.frames = np.load(frames_path, mmap_mode="r")
-        keys = json.loads((CACHE_DIR / f"{split}_keys.json").read_text())
+        keys = json.loads((CACHE_DIR / f"{split}_keys{suffix}.json").read_text())
 
         target_col, supervise_col, self.classes = STAGES[stage]
         manifest = pd.read_csv(
@@ -198,6 +201,7 @@ def build_loaders(
     batch_size: int = 8,
     num_workers: int = 2,
     splits: tuple[str, ...] = ("train", "valid"),
+    cache_tag: str | None = None,
 ) -> dict[str, DataLoader]:
     """One loader per split. Only train shuffles, and only train augments."""
     loaders = {}
@@ -207,6 +211,7 @@ def build_loaders(
             stage=stage,
             geometry_mode=geometry_mode,
             augment=augment if split == "train" else None,
+            cache_tag=cache_tag,
         )
         print("  " + ds.distribution())
         loaders[split] = DataLoader(

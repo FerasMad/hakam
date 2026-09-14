@@ -263,10 +263,27 @@ def run_finetune(args, loaders, device) -> dict:
         if hasattr(loaders["train"].dataset, "class_weights") else None
     criterion = nn.CrossEntropyLoss(weight=weights, label_smoothing=args.label_smoothing)
 
-    params = [p for p in model.parameters() if p.requires_grad]
-    optimiser = torch.optim.AdamW(params, lr=args.lr, weight_decay=args.weight_decay)
+    # The head starts from random weights; at the backbone's 1e-5 it barely moves
+    # (Exp 3: train loss 0.70 -> 0.68 in six epochs). It gets its own, larger rate.
+    head = [p for p in model.classifier.parameters() if p.requires_grad]
+    head_ids = {id(p) for p in head}
+    body = [p for p in model.parameters() if p.requires_grad and id(p) not in head_ids]
+    optimiser = torch.optim.AdamW(
+        [{"params": body, "lr": args.lr}, {"params": head, "lr": args.head_lr}],
+        weight_decay=args.weight_decay,
+    )
+    print(f"  lr backbone {args.lr:g}  head {args.head_lr:g}")
+
     steps = max(1, args.epochs * len(loaders["train"]))
-    schedule = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, T_max=steps)
+    warmup = min(len(loaders["train"]), steps // 2)
+
+    def lr_factor(step: int) -> float:
+        if step < warmup:
+            return (step + 1) / warmup
+        progress = (step - warmup) / max(1, steps - warmup)
+        return 0.5 * (1 + np.cos(np.pi * progress))
+
+    schedule = torch.optim.lr_scheduler.LambdaLR(optimiser, lr_factor)
 
     use_amp = device.type == "cuda"
     scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
@@ -318,8 +335,12 @@ def run_finetune(args, loaders, device) -> dict:
         out.mkdir(parents=True, exist_ok=True)
         torch.save(best_state, out / "best.pt")
 
+    # Best epoch is picked on the same valid set it is reported on, so it runs
+    # optimistic. The mean of the last three epochs is the number to compare runs by.
+    tail = [h["valid_balanced_accuracy"] for h in history[-3:]]
     return {"scores": best["scores"], "labels": best["labels"],
-            "best_epoch": best.get("epoch"), "history": history}
+            "best_epoch": best.get("epoch"), "history": history,
+            "last3_mean": round(float(np.mean(tail)), 4) if tail else None}
 
 
 # --------------------------------------------------------------------------
@@ -334,6 +355,9 @@ def main() -> int:
     ap.add_argument("--freeze-blocks", type=int, default=6)
     ap.add_argument("--epochs", type=int, default=8)
     ap.add_argument("--lr", type=float, default=3e-5)
+    ap.add_argument("--head-lr", type=float, default=1e-3)
+    ap.add_argument("--cache-tag", default=None, help="frame cache variant, e.g. dense")
+    ap.add_argument("--seed", type=int, default=config.SEED)
     ap.add_argument("--weight-decay", type=float, default=0.1)
     ap.add_argument("--label-smoothing", type=float, default=0.1)
     ap.add_argument("--head-dropout", type=float, default=0.3)
@@ -348,13 +372,17 @@ def main() -> int:
     args.name = args.name or f"{args.stage}_{args.mode}_{args.geometry}"
     device = fx.resolve_device()
     augment = tfm.MILD_V1 if args.augment == "mild_aug_v1" else None
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
 
-    print(f"run={args.name}  device={device}  geometry={args.geometry}")
+    print(f"run={args.name}  device={device}  geometry={args.geometry}  "
+          f"backbone={args.backbone}  cache={args.cache_tag or 'default'}")
     print(f"augment: {tfm.describe(augment)}")
 
     loaders = build_loaders(
         stage=args.stage, geometry_mode=args.geometry, augment=augment,
         batch_size=args.batch_size, num_workers=args.num_workers,
+        cache_tag=args.cache_tag,
     )
     train_ds = loaders["train"].dataset
 
@@ -385,12 +413,15 @@ def main() -> int:
         "freeze_blocks": args.freeze_blocks if args.mode == "finetune" else None,
         "epochs": args.epochs if args.mode == "finetune" else None,
         "best_epoch": result.get("best_epoch"),
+        "last3_mean_balanced_accuracy": result.get("last3_mean"),
+        "cache_tag": args.cache_tag,
         "minutes": round((time.time() - t0) / 60, 1),
         "argmax": report(labels, scores, 0.5),
         recall_key: report(labels, scores, threshold),
         "selective": selective_accuracy(labels, scores, 0.6),
         "balanced_accuracy_ci95": clustered_ci(labels, scores, _matches_of(loaders["valid"])),
-        "hyperparameters": {"lr": args.lr, "weight_decay": args.weight_decay,
+        "hyperparameters": {"lr": args.lr, "head_lr": args.head_lr, "seed": args.seed,
+                            "weight_decay": args.weight_decay,
                             "label_smoothing": args.label_smoothing,
                             "head_dropout": args.head_dropout},
         "history": result.get("history", []),
@@ -411,6 +442,8 @@ def main() -> int:
     print(f"  selective @{s['coverage']:.0%} coverage: accuracy "
           f"{s['selective_accuracy']:.3f}")
     print(f"  balanced acc 95% CI (match-clustered): {metrics['balanced_accuracy_ci95']}")
+    if metrics["last3_mean_balanced_accuracy"] is not None:
+        print(f"  balanced acc, mean of last 3 epochs: {metrics['last3_mean_balanced_accuracy']:.3f}")
     print(f"  -> {out}")
     return 0
 

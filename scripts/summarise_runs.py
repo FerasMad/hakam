@@ -34,6 +34,7 @@ def main() -> int:
         rows.append({
             "run": m["run"],
             "balanced_acc": m["argmax"]["balanced_accuracy"],
+            "last3_mean": m.get("last3_mean_balanced_accuracy"),
             "ci95": m.get("balanced_accuracy_ci95"),
             "confident_acc@60%": m["selective"]["selective_accuracy"],
             "best_epoch": m.get("best_epoch"),

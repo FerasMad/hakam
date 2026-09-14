@@ -55,8 +55,10 @@ def last_clip_per_action(clips) -> list[tuple[str, str, int]]:
     return sorted(rows, key=lambda r: int(r[0]) if r[0].isdigit() else r[0])
 
 
-def cache_split(split: str, force: bool) -> None:
-    out = CACHE_DIR / f"{split}_frames.npy"
+def cache_split(split: str, force: bool, start: int = config.START_FRAME,
+                end: int = config.END_FRAME, tag: str | None = None) -> None:
+    suffix = f"_{tag}" if tag else ""
+    out = CACHE_DIR / f"{split}_frames{suffix}.npy"
     if out.exists() and not force:
         print(f"[{split}] cache exists, skipping ({out.name})")
         return
@@ -86,7 +88,7 @@ def cache_split(split: str, force: bool) -> None:
     t0 = time.time()
     odd = 0
     for i, (_action_id, path, _idx) in enumerate(rows):
-        frames = fx.sample_window(path)
+        frames = fx.sample_window(path, start=start, end=end)
         if frames.shape[1:3] != (FRAME_H, FRAME_W):
             # A few clips may differ. Resize rather than abort a run that is
             # otherwise fine, but count them so it stays visible.
@@ -104,18 +106,18 @@ def cache_split(split: str, force: bool) -> None:
     arr.flush()
     del arr
 
-    (CACHE_DIR / f"{split}_keys.json").write_text(
+    (CACHE_DIR / f"{split}_keys{suffix}.json").write_text(
         json.dumps([r[0] for r in rows]), encoding="utf-8"
     )
-    (CACHE_DIR / f"{split}_meta.json").write_text(
+    (CACHE_DIR / f"{split}_meta{suffix}.json").write_text(
         json.dumps({
             "split": split,
             "n_actions": n,
             "num_frames": config.NUM_FRAMES,
             "height": FRAME_H,
             "width": FRAME_W,
-            "start_frame": config.START_FRAME,
-            "end_frame": config.END_FRAME,
+            "start_frame": start,
+            "end_frame": end,
             "source": "last clip per action (a close-up 95% of the time)",
             "resized_clips": odd,
             "note": "raw decoded frames, BEFORE the backbone processor, so crop "
@@ -134,12 +136,16 @@ def main() -> None:
     ap.add_argument("--splits", nargs="+", default=["train", "valid", "test"],
                     choices=["train", "valid", "test"])
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--start", type=int, default=config.START_FRAME)
+    ap.add_argument("--end", type=int, default=config.END_FRAME)
+    ap.add_argument("--tag", default=None,
+                    help="write <split>_frames_<tag>.npy, leaving the default cache alone")
     args = ap.parse_args()
 
-    print(f"window {config.START_FRAME}-{config.END_FRAME} "
-          f"({(config.END_FRAME - config.START_FRAME)/25:.2f}s at 25fps)\n")
+    print(f"window {args.start}-{args.end} "
+          f"({(args.end - args.start)/25:.2f}s at 25fps)\n")
     for split in args.splits:
-        cache_split(split, args.force)
+        cache_split(split, args.force, args.start, args.end, args.tag)
     print(f"\ncache in {CACHE_DIR}")
 
 
