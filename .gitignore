@@ -14,12 +14,16 @@ features_cache/
 # covers - keep them local.
 artifacts/
 
-# Laws of the Game source PDF is copyrighted; the curated corpus is committed,
-# the original is not.
+# Laws of the Game source PDFs stay local; the curated corpus is committed.
 laws/*.pdf
+laws/raw/*.pdf
+laws/embeddings.npy
 
 # Pretrained detector weights, downloaded on demand
 yolov8n.pt
 *.pt
 
 frame_cache/
+
+# Local PDF inspection outputs
+tmp/

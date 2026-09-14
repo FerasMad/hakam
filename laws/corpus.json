@@ -1,0 +1,472 @@
+[
+  {
+    "id": "law12-scope-ball-in-play",
+    "law": "Law 12",
+    "section": "Introduction",
+    "title_ar": "نطاق احتساب المخالفات",
+    "text_ar": "لا تُحتسب الركلات الحرة أو ركلات الجزاء بموجب القانون 12 إلا عن مخالفات وقعت والكرة في اللعب.",
+    "text_en": "Law 12 free kicks and penalty kicks apply only to offences committed while the ball is in play.",
+    "tags": ["offence", "no_offence", "challenge"],
+    "source_pages": {"ar": [111], "en": [115]}
+  },
+  {
+    "id": "law12-1-direct-free-kick-actions",
+    "law": "Law 12",
+    "section": "1. Direct free kick",
+    "title_ar": "الأفعال التي تستوجب ركلة حرة مباشرة",
+    "text_ar": "تُحتسب ركلة حرة مباشرة عند ارتكاب أفعال مثل المكاتفة أو القفز أو الركل أو الدفع أو الضرب أو المهاجمة أو العرقلة بإهمال أو تهور أو قوة مفرطة.",
+    "text_en": "A direct free kick applies to actions such as charging, jumping, kicking, pushing, striking, tackling, challenging or tripping when careless, reckless or excessively forceful.",
+    "tags": ["offence", "tackling", "standing tackling", "challenge", "pushing", "elbowing", "under_body", "upper_body"],
+    "source_pages": {"ar": [111], "en": [115]}
+  },
+  {
+    "id": "law12-1-contact-direct-free-kick",
+    "law": "Law 12",
+    "section": "1. Direct free kick",
+    "title_ar": "المخالفة المصحوبة بتلامس",
+    "text_ar": "إذا تضمنت المخالفة تلامسًا مع المنافس فإن استئناف اللعب يكون بركلة حرة مباشرة، أو ركلة جزاء إذا وقعت داخل منطقة جزاء المخالف.",
+    "text_en": "An offence involving contact is penalised by a direct free kick, or a penalty kick when committed in the offender's penalty area.",
+    "tags": ["offence", "with_contact", "tackling", "challenge", "card"],
+    "source_pages": {"ar": [111, 126], "en": [115, 128]}
+  },
+  {
+    "id": "law12-1-careless-definition",
+    "law": "Law 12",
+    "section": "1. Direct free kick - careless",
+    "title_ar": "الإهمال",
+    "text_ar": "الإهمال هو غياب الانتباه أو مراعاة المنافس أثناء التحدي أو التصرف بلا حذر، ولا يتطلب بذاته إجراءً انضباطيًا.",
+    "text_en": "Careless play shows insufficient attention or consideration in a challenge or a lack of precaution; no disciplinary sanction is required for carelessness alone.",
+    "tags": ["offence", "no_card", "tackling", "standing tackling", "challenge", "with_contact"],
+    "source_pages": {"ar": [111], "en": [115]}
+  },
+  {
+    "id": "law12-1-reckless-definition",
+    "law": "Law 12",
+    "section": "1. Direct free kick - reckless",
+    "title_ar": "التهور",
+    "text_ar": "التهور هو تجاهل الخطر أو العواقب على المنافس، ويستوجب إنذار اللاعب.",
+    "text_en": "Reckless play disregards the danger to, or consequences for, an opponent and requires a caution.",
+    "tags": ["offence", "card", "yellow", "tackling", "standing tackling", "challenge", "with_contact"],
+    "source_pages": {"ar": [111], "en": [115]}
+  },
+  {
+    "id": "law12-1-excessive-force-definition",
+    "law": "Law 12",
+    "section": "1. Direct free kick - using excessive force",
+    "title_ar": "استخدام القوة المفرطة",
+    "text_ar": "استخدام القوة المفرطة يعني تجاوز القوة اللازمة أو تعريض سلامة المنافس للخطر، ويستوجب الطرد.",
+    "text_en": "Excessive force exceeds what is necessary or endangers an opponent's safety and requires a sending-off.",
+    "tags": ["offence", "card", "red", "tackling", "challenge", "with_contact"],
+    "source_pages": {"ar": [111], "en": [115]}
+  },
+  {
+    "id": "law12-1-holding-opponent",
+    "law": "Law 12",
+    "section": "1. Direct free kick",
+    "title_ar": "مسك المنافس",
+    "text_ar": "مسك المنافس مخالفة تستوجب ركلة حرة مباشرة، وتُقيَّم العقوبة الانضباطية وفق أثر المسك وسياقه.",
+    "text_en": "Holding an opponent is a direct-free-kick offence; any disciplinary sanction depends on the effect and context of the hold.",
+    "tags": ["offence", "holding", "with_contact", "upper_body", "card", "no_card"],
+    "source_pages": {"ar": [111], "en": [116]}
+  },
+  {
+    "id": "law12-1-impeding-with-contact",
+    "law": "Law 12",
+    "section": "1. Direct free kick",
+    "title_ar": "اعتراض المنافس مع تلامس",
+    "text_ar": "اعتراض تقدم المنافس مع حدوث تلامس يُعامل كمخالفة تستوجب ركلة حرة مباشرة.",
+    "text_en": "Impeding an opponent with contact is a direct-free-kick offence.",
+    "tags": ["offence", "with_contact", "challenge", "holding", "pushing"],
+    "source_pages": {"ar": [111], "en": [116]}
+  },
+  {
+    "id": "law12-1-pushing",
+    "law": "Law 12",
+    "section": "1. Direct free kick",
+    "title_ar": "دفع المنافس",
+    "text_ar": "يصبح دفع المنافس مخالفة لركلة حرة مباشرة عندما يقع بإهمال أو تهور أو باستخدام قوة مفرطة.",
+    "text_en": "Pushing an opponent is penalised by a direct free kick when careless, reckless or carried out with excessive force.",
+    "tags": ["offence", "pushing", "with_contact", "upper_body", "card", "no_card"],
+    "source_pages": {"ar": [111], "en": [115]}
+  },
+  {
+    "id": "law12-1-striking-elbow",
+    "law": "Law 12",
+    "section": "1. Direct free kick",
+    "title_ar": "الضرب أو استخدام المرفق",
+    "text_ar": "الضرب أو محاولة الضرب، بما فيه استخدام الرأس أو المرفق، يخضع لتقييم الإهمال أو التهور أو القوة المفرطة.",
+    "text_en": "Striking or attempting to strike, including with the head or elbow, is judged by the careless, reckless and excessive-force criteria.",
+    "tags": ["offence", "elbowing", "with_contact", "upper_body", "card", "red", "yellow"],
+    "source_pages": {"ar": [111, 120], "en": [115, 125]}
+  },
+  {
+    "id": "law12-2-dangerous-play",
+    "law": "Law 12",
+    "section": "2. Indirect free kick - playing in a dangerous manner",
+    "title_ar": "اللعب بطريقة خطرة",
+    "text_ar": "اللعب بطريقة خطرة هو فعل يهدد بإصابة شخص أثناء محاولة لعب الكرة ويجعل المنافس يتراجع خوفًا من الإصابة؛ ويُستأنف عادة بركلة حرة غير مباشرة إذا لم يحدث تلامس.",
+    "text_en": "Dangerous play threatens injury while trying to play the ball and causes a nearby opponent to refrain through fear of injury; without contact it normally leads to an indirect free kick.",
+    "tags": ["offence", "high leg", "without_contact", "challenge", "under_body", "yes"],
+    "source_pages": {"ar": [114], "en": [118]}
+  },
+  {
+    "id": "law12-2-dangerous-play-contact",
+    "law": "Law 12",
+    "section": "2. Indirect free kick - playing in a dangerous manner",
+    "title_ar": "اللعب الخطر مع تلامس",
+    "text_ar": "إذا نتج عن اللعب الخطر تلامس بدني مع المنافس، فتُعاقب المخالفة بركلة حرة مباشرة أو ركلة جزاء بدل الركلة غير المباشرة.",
+    "text_en": "When dangerous play includes physical contact, it is penalised with a direct free kick or penalty kick rather than an indirect free kick.",
+    "tags": ["offence", "high leg", "with_contact", "under_body", "card"],
+    "source_pages": {"ar": [114], "en": [118]}
+  },
+  {
+    "id": "law12-2-impeding-without-contact",
+    "law": "Law 12",
+    "section": "2. Indirect free kick",
+    "title_ar": "اعتراض المنافس دون تلامس",
+    "text_ar": "اعتراض تقدم المنافس دون تلامس يستوجب ركلة حرة غير مباشرة.",
+    "text_en": "Impeding an opponent without contact is punished by an indirect free kick.",
+    "tags": ["offence", "without_contact", "challenge", "holding"],
+    "source_pages": {"ar": [114], "en": [118]}
+  },
+  {
+    "id": "law12-2-fair-shielding",
+    "law": "Law 12",
+    "section": "2. Indirect free kick - impeding",
+    "title_ar": "حجب الكرة بصورة قانونية",
+    "text_ar": "يجوز للاعب حجب الكرة بوضع جسمه بين المنافس والكرة عندما تكون الكرة في مسافة اللعب، بشرط ألا يمسك المنافس أو يدفعه بذراعيه أو جسمه.",
+    "text_en": "A player may fairly shield the ball when it is within playing distance, provided the opponent is not held off with the arms or body.",
+    "tags": ["no_offence", "no_card", "challenge", "without_contact", "yes"],
+    "source_pages": {"ar": [115], "en": [119]}
+  },
+  {
+    "id": "law12-contact-alone-not-severity",
+    "law": "Law 12",
+    "section": "1-2. Free-kick criteria",
+    "title_ar": "التلامس لا يحدد العقوبة وحده",
+    "text_ar": "وجود التلامس يحدد نوع استئناف اللعب، لكنه لا يثبت وحده التهور أو القوة المفرطة؛ يجب تقييم طريقة الفعل وخطورته.",
+    "text_en": "Contact affects the restart, but contact alone does not establish recklessness or excessive force; the manner and danger of the act must be assessed.",
+    "tags": ["with_contact", "no_offence", "offence", "card", "no_card", "challenge"],
+    "source_pages": {"ar": [111, 114], "en": [115, 118]}
+  },
+  {
+    "id": "law12-3-delay-disciplinary-sanction",
+    "law": "Law 12",
+    "section": "3. Disciplinary action",
+    "title_ar": "تنفيذ العقوبة قبل استئناف اللعب",
+    "text_ar": "إذا قرر الحكم إنذار لاعب أو طرده، فلا يُستأنف اللعب عادة حتى تنفيذ العقوبة، مع استثناء محدد للركلة الحرة السريعة وفرصة التسجيل الواضحة.",
+    "text_en": "After deciding to caution or send off a player, the referee normally delays the restart until the sanction is administered, subject to the quick-free-kick exception.",
+    "tags": ["card", "yellow", "red", "offence"],
+    "source_pages": {"ar": [116], "en": [120]}
+  },
+  {
+    "id": "law12-3-reckless-caution",
+    "law": "Law 12",
+    "section": "3. Cautionable offences",
+    "title_ar": "التهور سلوك غير رياضي",
+    "text_ar": "ارتكاب مخالفة بركلة حرة مباشرة بطريقة متهورة يُعد سلوكًا غير رياضي ويستوجب الإنذار.",
+    "text_en": "A direct-free-kick offence committed recklessly is unsporting behaviour and requires a caution.",
+    "tags": ["offence", "card", "yellow", "tackling", "challenge", "with_contact"],
+    "source_pages": {"ar": [117, 118], "en": [121, 122]}
+  },
+  {
+    "id": "law12-3-stopping-promising-attack",
+    "law": "Law 12",
+    "section": "3. Cautions for unsporting behaviour",
+    "title_ar": "إيقاف هجمة واعدة",
+    "text_ar": "إيقاف هجمة واعدة أو التدخل فيها بمخالفة قد يستوجب الإنذار، مع مراعاة استثناءات إتاحة الفرصة وركلة الجزاء الواردة في القانون.",
+    "text_en": "Committing an offence that interferes with or stops a promising attack can require a caution, subject to the Law's advantage and penalty-kick exceptions.",
+    "tags": ["offence", "card", "yellow", "tackling", "holding", "pushing", "challenge"],
+    "source_pages": {"ar": [118], "en": [122]}
+  },
+  {
+    "id": "law12-3-simulation",
+    "law": "Law 12",
+    "section": "3. Cautions for unsporting behaviour",
+    "title_ar": "محاولة خداع الحكم",
+    "text_ar": "محاولة خداع الحكم بادعاء الإصابة أو التظاهر بوقوع مخالفة تُعد سلوكًا غير رياضي يستوجب الإنذار.",
+    "text_en": "Attempting to deceive the referee by feigning injury or pretending to have been fouled is unsporting behaviour and requires a caution.",
+    "tags": ["offence", "dive", "without_contact", "card", "yellow", "no"],
+    "source_pages": {"ar": [118], "en": [122]}
+  },
+  {
+    "id": "law12-3-persistent-offences",
+    "law": "Law 12",
+    "section": "3. Cautionable offences",
+    "title_ar": "تكرار المخالفات",
+    "text_ar": "تكرار ارتكاب المخالفات سبب مستقل للإنذار، ولا يحدد القانون عددًا ثابتًا أو نمطًا واحدًا لاعتبار السلوك متكررًا.",
+    "text_en": "Persistent offences are cautionable; the Law sets no fixed number or single pattern for persistence.",
+    "tags": ["offence", "card", "yellow", "challenge"],
+    "source_pages": {"ar": [117], "en": [121]}
+  },
+  {
+    "id": "law12-3-delaying-restart",
+    "law": "Law 12",
+    "section": "3. Cautionable offences",
+    "title_ar": "تأخير استئناف اللعب",
+    "text_ar": "تعمد تأخير استئناف اللعب من المخالفات التي تستوجب الإنذار.",
+    "text_en": "Delaying the restart of play is a cautionable offence.",
+    "tags": ["offence", "card", "yellow"],
+    "source_pages": {"ar": [116, 117], "en": [120, 121]}
+  },
+  {
+    "id": "law12-3-dogso-attempt-play-ball",
+    "law": "Law 12",
+    "section": "3. Denying a goal or obvious goal-scoring opportunity",
+    "title_ar": "محاولة لعب الكرة داخل منطقة الجزاء",
+    "text_ar": "عند حرمان المنافس من فرصة هدف واضحة داخل منطقة الجزاء مع محاولة لعب الكرة أو منازعتها، قد تُخفف العقوبة إلى إنذار إذا احتُسبت ركلة جزاء ولم تكن المخالفة لعبًا عنيفًا.",
+    "text_en": "For DOGSO in the penalty area, an attempt to play or challenge for the ball can reduce the sanction to a caution when a penalty is awarded and the offence is not serious foul play.",
+    "tags": ["offence", "card", "yellow", "tackling", "challenge", "yes"],
+    "source_pages": {"ar": [119], "en": [124]}
+  },
+  {
+    "id": "law12-3-dogso-no-attempt",
+    "law": "Law 12",
+    "section": "3. Denying a goal or obvious goal-scoring opportunity",
+    "title_ar": "منع فرصة هدف دون محاولة لعب الكرة",
+    "text_ar": "المسك أو السحب أو الدفع أو عدم وجود إمكانية للعب الكرة عند منع فرصة هدف واضحة يستوجب الطرد حتى عند احتساب ركلة جزاء.",
+    "text_en": "Holding, pulling, pushing or having no possibility to play the ball when denying an obvious goal-scoring opportunity requires a sending-off even if a penalty is awarded.",
+    "tags": ["offence", "card", "red", "holding", "pushing", "no", "with_contact"],
+    "source_pages": {"ar": [119], "en": [124]}
+  },
+  {
+    "id": "law12-3-serious-foul-play",
+    "law": "Law 12",
+    "section": "3. Serious foul play",
+    "title_ar": "اللعب العنيف",
+    "text_ar": "المهاجمة أو المنازعة التي تعرّض سلامة المنافس للخطر أو تستخدم قوة مفرطة أو وحشية أثناء التنافس على الكرة تُعد لعبًا عنيفًا وتستوجب الطرد.",
+    "text_en": "A tackle or challenge that endangers an opponent's safety or uses excessive force or brutality while contesting the ball is serious foul play and requires a sending-off.",
+    "tags": ["offence", "card", "red", "tackling", "standing tackling", "challenge", "with_contact"],
+    "source_pages": {"ar": [119, 120], "en": [124, 125]}
+  },
+  {
+    "id": "law12-3-serious-foul-play-legs",
+    "law": "Law 12",
+    "section": "3. Serious foul play",
+    "title_ar": "المهاجمة التي تهدد سلامة المنافس",
+    "text_ar": "الدخول على المنافس من الأمام أو الجانب أو الخلف باستخدام ساق أو ساقين وبقوة مفرطة أو بما يهدد سلامته يُعد لعبًا عنيفًا.",
+    "text_en": "A lunge from the front, side or behind using one or both legs with excessive force or danger to the opponent is serious foul play.",
+    "tags": ["offence", "card", "red", "tackling", "challenge", "under_body", "with_contact"],
+    "source_pages": {"ar": [120], "en": [124, 125]}
+  },
+  {
+    "id": "law12-3-violent-conduct",
+    "law": "Law 12",
+    "section": "3. Violent conduct",
+    "title_ar": "السلوك المشين",
+    "text_ar": "استخدام القوة المفرطة أو الوحشية أو محاولة استخدامها ضد شخص عندما لا تكون هناك منافسة على الكرة يُعد سلوكًا مشينًا ويستوجب الطرد.",
+    "text_en": "Using or attempting excessive force or brutality against a person when not challenging for the ball is violent conduct and requires a sending-off.",
+    "tags": ["offence", "card", "red", "elbowing", "pushing", "with_contact", "no"],
+    "source_pages": {"ar": [120], "en": [125]}
+  },
+  {
+    "id": "law12-3-face-head-contact",
+    "law": "Law 12",
+    "section": "3. Violent conduct",
+    "title_ar": "ضرب الرأس أو الوجه",
+    "text_ar": "تعمد ضرب الرأس أو الوجه باليد أو الذراع عندما لا تكون هناك منافسة على الكرة يُعامل كسلوك مشين، ما لم تكن القوة المستخدمة ضئيلة جدًا.",
+    "text_en": "Deliberately striking the head or face with the hand or arm away from a challenge is violent conduct unless the force used is negligible.",
+    "tags": ["offence", "card", "red", "elbowing", "upper_body", "with_contact", "no"],
+    "source_pages": {"ar": [120], "en": [125]}
+  },
+  {
+    "id": "law12-4-thrown-object-reckless",
+    "law": "Law 12",
+    "section": "4. Restart after fouls and misconduct",
+    "title_ar": "رمي جسم بتهور",
+    "text_ar": "إذا رُمي جسم أو رُكلت الكرة باتجاه شخص بتهور، يُنذر المخالف بسبب السلوك غير الرياضي.",
+    "text_en": "A recklessly thrown object or kicked ball directed at a person results in a caution for unsporting behaviour.",
+    "tags": ["offence", "card", "yellow", "with_contact", "without_contact"],
+    "source_pages": {"ar": [122], "en": [127]}
+  },
+  {
+    "id": "law12-4-thrown-object-excessive",
+    "law": "Law 12",
+    "section": "4. Restart after fouls and misconduct",
+    "title_ar": "رمي جسم بقوة مفرطة",
+    "text_ar": "إذا استُخدمت قوة مفرطة في رمي جسم أو ركل الكرة باتجاه شخص، يُطرد المخالف بسبب السلوك المشين.",
+    "text_en": "An object thrown, or ball kicked, at a person with excessive force results in a sending-off for violent conduct.",
+    "tags": ["offence", "card", "red", "with_contact", "without_contact"],
+    "source_pages": {"ar": [122], "en": [127]}
+  },
+  {
+    "id": "law12-4-holding-continues-penalty-area",
+    "law": "Law 12",
+    "section": "4. Restart after fouls and misconduct",
+    "title_ar": "استمرار المسك إلى منطقة الجزاء",
+    "text_ar": "إذا بدأ المدافع مسك المنافس خارج منطقة الجزاء واستمر المسك داخلها، تُحتسب ركلة جزاء.",
+    "text_en": "If a defender begins holding outside the penalty area and continues inside it, a penalty kick is awarded.",
+    "tags": ["offence", "holding", "with_contact", "card", "no_card"],
+    "source_pages": {"ar": [122], "en": [127]}
+  },
+  {
+    "id": "law12-no-card-careless",
+    "law": "Law 12",
+    "section": "1. Direct free kick - disciplinary scale",
+    "title_ar": "مخالفة دون بطاقة",
+    "text_ar": "قد تكون الواقعة مخالفة تستوجب ركلة حرة دون بطاقة عندما لا تتجاوز درجة الإهمال ولا توجد أسباب انضباطية أخرى.",
+    "text_en": "An offence may require a free kick but no card when it is only careless and no separate disciplinary reason applies.",
+    "tags": ["offence", "no_card", "tackling", "standing tackling", "challenge", "with_contact"],
+    "source_pages": {"ar": [111], "en": [115]}
+  },
+  {
+    "id": "law12-no-offence-fair-challenge",
+    "law": "Law 12",
+    "section": "1-2. Foul criteria",
+    "title_ar": "المنافسة القانونية",
+    "text_ar": "لا تكون المنافسة مخالفة لمجرد وجودها؛ يلزم أن يتحقق فعل يعاقب عليه القانون أو أن تكون طريقة التحدي مهملة أو متهورة أو مفرطة القوة.",
+    "text_en": "A challenge is not an offence merely because it occurs; a listed offence or a careless, reckless or excessively forceful manner must be established.",
+    "tags": ["no_offence", "no_card", "challenge", "tackling", "standing tackling", "with_contact", "without_contact", "yes"],
+    "source_pages": {"ar": [111, 115], "en": [115, 119]}
+  },
+  {
+    "id": "law12-card-colour-conditional",
+    "law": "Law 12",
+    "section": "1 and 3. Disciplinary scale",
+    "title_ar": "ربط العقوبة بدرجة الخطورة",
+    "text_ar": "إذا لم يحدد القرار لون البطاقة، فلا يمكن استنتاجه من التلامس وحده: التهور قد يستوجب إنذارًا، بينما القوة المفرطة أو تعريض السلامة للخطر قد يستوجب الطرد.",
+    "text_en": "When card colour is not predicted, contact alone cannot determine it: recklessness may require a caution, while excessive force or endangered safety may require a sending-off.",
+    "tags": ["card", "yellow", "red", "with_contact", "tackling", "challenge"],
+    "source_pages": {"ar": [111, 120], "en": [115, 124, 125]}
+  },
+  {
+    "id": "law5-1-referee-authority",
+    "law": "Law 5",
+    "section": "1. The authority of the referee",
+    "title_ar": "سلطة الحكم",
+    "text_ar": "تُدار كل مباراة بواسطة حكم يملك السلطة الكاملة لتطبيق قوانين اللعبة المتعلقة بالمباراة.",
+    "text_en": "Each match is controlled by a referee with full authority to enforce the Laws of the Game in connection with that match.",
+    "tags": ["offence", "no_offence", "dont know"],
+    "source_pages": {"ar": [73], "en": [73]}
+  },
+  {
+    "id": "law5-2-decisions-opinion",
+    "law": "Law 5",
+    "section": "2. Decisions of the referee",
+    "title_ar": "القرار وفق رأي الحكم",
+    "text_ar": "يتخذ الحكم قراراته وفق قوانين اللعبة وروحها وبناء على رأيه، وله سلطة تقديرية لاختيار الإجراء الملائم ضمن إطار القانون.",
+    "text_en": "The referee decides according to the Laws and spirit of the game, using their opinion and discretion within the framework of the Laws.",
+    "tags": ["offence", "no_offence", "card", "no_card", "dont know"],
+    "source_pages": {"ar": [73], "en": [73]}
+  },
+  {
+    "id": "law5-2-decisions-final",
+    "law": "Law 5",
+    "section": "2. Decisions of the referee",
+    "title_ar": "نهائية قرارات الحكم",
+    "text_ar": "قرارات الحكم بشأن الوقائع المتعلقة باللعب نهائية ويجب احترام قرارات الحكم وبقية حكام المباراة.",
+    "text_en": "The referee's decisions on facts connected with play are final and the decisions of all match officials must be respected.",
+    "tags": ["offence", "no_offence", "card", "no_card"],
+    "source_pages": {"ar": [73], "en": [73]}
+  },
+  {
+    "id": "law5-3-advantage",
+    "law": "Law 5",
+    "section": "3. Powers and duties - advantage",
+    "title_ar": "مبدأ إتاحة الفرصة",
+    "text_ar": "يجوز للحكم السماح باستمرار اللعب بعد المخالفة إذا استفاد الفريق غير المخطئ، ثم يعود لمعاقبة المخالفة إذا لم تتحقق الفائدة فورًا أو خلال ثوان قليلة.",
+    "text_en": "The referee may allow play to continue when the non-offending team benefits, and penalise the offence if the expected advantage does not arise immediately or within a few seconds.",
+    "tags": ["offence", "card", "no_card", "challenge"],
+    "source_pages": {"ar": [74], "en": [74]}
+  },
+  {
+    "id": "law5-3-more-serious-offence",
+    "law": "Law 5",
+    "section": "3. Powers and duties - disciplinary action",
+    "title_ar": "معاقبة المخالفة الأشد",
+    "text_ar": "عند وقوع أكثر من مخالفة في الوقت نفسه، يعاقب الحكم المخالفة الأشد بالنظر إلى العقوبة والاستئناف والخطورة البدنية والتأثير التكتيكي.",
+    "text_en": "When offences occur simultaneously, the referee punishes the more serious one by sanction, restart, physical severity and tactical impact.",
+    "tags": ["offence", "card", "yellow", "red", "challenge"],
+    "source_pages": {"ar": [74], "en": [74]}
+  },
+  {
+    "id": "law5-3-disciplinary-action",
+    "law": "Law 5",
+    "section": "3. Powers and duties - disciplinary action",
+    "title_ar": "الإجراء الانضباطي",
+    "text_ar": "يتخذ الحكم الإجراء الانضباطي ضد اللاعبين الذين يرتكبون مخالفات تستوجب الإنذار أو الطرد.",
+    "text_en": "The referee takes disciplinary action against players guilty of cautionable or sending-off offences.",
+    "tags": ["offence", "card", "yellow", "red"],
+    "source_pages": {"ar": [74], "en": [74]}
+  },
+  {
+    "id": "law5-4-var-scope",
+    "law": "Law 5",
+    "section": "4. Video assistant referee",
+    "title_ar": "نطاق تدخل حكم الفيديو",
+    "text_ar": "تقتصر مساعدة حكم الفيديو على خطأ واضح وظاهر أو حادثة جسيمة فائتة ضمن حالات الهدف وركلة الجزاء والطرد والهوية الخاطئة، إضافة إلى خيار محدد للركلة الركنية.",
+    "text_en": "VAR assistance is limited to clear and obvious errors or serious missed incidents concerning goals, penalties, red cards, mistaken identity and an optional narrow corner-kick case.",
+    "tags": ["offence", "no_offence", "card", "red", "dont know"],
+    "source_pages": {"ar": [76], "en": [77]}
+  },
+  {
+    "id": "law5-4-var-final-decision",
+    "law": "Law 5",
+    "section": "4. Video assistant referee",
+    "title_ar": "القرار النهائي بعد المراجعة",
+    "text_ar": "يستخدم حكم الفيديو الإعادات لمساعدة الحكم، لكن الحكم هو من يتخذ القرار النهائي استنادًا إلى المعلومات أو المراجعة داخل الميدان.",
+    "text_en": "VAR uses replays to assist, but the referee makes the final decision from the VAR information and/or an on-field review.",
+    "tags": ["offence", "no_offence", "card", "no_card", "dont know"],
+    "source_pages": {"ar": [76], "en": [77]}
+  },
+  {
+    "id": "glossary-challenge",
+    "law": "Glossary",
+    "section": "Football terms - challenge",
+    "title_ar": "تعريف المنافسة",
+    "text_ar": "المنافسة هي تصرف يقوم به لاعب لمنازعة لاعب آخر على الكرة.",
+    "text_en": "A challenge is an action by which a player competes or contests with an opponent for the ball.",
+    "tags": ["challenge", "tackling", "standing tackling", "yes", "no_offence"],
+    "source_pages": {"ar": [190], "en": [192]}
+  },
+  {
+    "id": "glossary-tackle",
+    "law": "Glossary",
+    "section": "Football terms - tackle",
+    "title_ar": "تعريف المهاجمة",
+    "text_ar": "المهاجمة هي تحدٍ للكرة بالقدم، على الأرض أو في الهواء.",
+    "text_en": "A tackle is a challenge for the ball made with the foot, on the ground or in the air.",
+    "tags": ["tackling", "standing tackling", "challenge", "under_body", "yes"],
+    "source_pages": {"ar": [195], "en": [203]}
+  },
+  {
+    "id": "glossary-holding",
+    "law": "Glossary",
+    "section": "Football terms - holding offence",
+    "title_ar": "تعريف مخالفة المسك",
+    "text_ar": "تحدث مخالفة المسك فقط عندما يعيق تلامس اللاعب مع جسم المنافس أو معداته حركته.",
+    "text_en": "A holding offence occurs only when contact with an opponent's body or equipment impedes the opponent's movement.",
+    "tags": ["holding", "with_contact", "upper_body", "offence"],
+    "source_pages": {"ar": [193], "en": [200]}
+  },
+  {
+    "id": "glossary-careless",
+    "law": "Glossary",
+    "section": "Football terms - careless",
+    "title_ar": "تعريف الإهمال",
+    "text_ar": "الإهمال هو غياب الانتباه أو مراعاة المنافس أثناء التحدي أو التصرف من دون حذر.",
+    "text_en": "Careless means showing a lack of attention or consideration when making a challenge, or acting without precaution.",
+    "tags": ["offence", "no_card", "tackling", "challenge", "with_contact"],
+    "source_pages": {"ar": [194], "en": [192]}
+  },
+  {
+    "id": "glossary-reckless",
+    "law": "Glossary",
+    "section": "Football terms - reckless",
+    "title_ar": "تعريف التهور",
+    "text_ar": "التهور هو التصرف مع تجاهل الخطر أو العواقب التي قد تلحق بالمنافس.",
+    "text_en": "Reckless means acting with disregard to the danger to, or consequences for, an opponent.",
+    "tags": ["offence", "card", "yellow", "tackling", "challenge", "with_contact"],
+    "source_pages": {"ar": [194], "en": [202]}
+  },
+  {
+    "id": "glossary-excessive-force",
+    "law": "Glossary",
+    "section": "Football terms - excessive force",
+    "title_ar": "تعريف القوة المفرطة",
+    "text_ar": "القوة المفرطة هي استخدام قوة أو طاقة أكبر من اللازم بما قد يهدد سلامة المنافس.",
+    "text_en": "Excessive force is using more force or energy than is necessary and may endanger an opponent's safety.",
+    "tags": ["offence", "card", "red", "tackling", "challenge", "with_contact"],
+    "source_pages": {"ar": [199], "en": [197]}
+  }
+]

@@ -44,12 +44,12 @@
                         |
                         v
         +-------------------------------+      +------------------------+
-        |  FAISS retrieval              |<-----|  Laws of the Game (AR) |
+        |  hybrid tag + E5 retrieval    |<-----|  Laws of the Game (AR) |
         +---------------+---------------+      +------------------------+
                         |
                         v
         +-------------------------------+
-        |  Claude -> Arabic explanation |
+        |  GPT-5 nano -> Arabic text    |
         +---------------+---------------+
                         |
                         v

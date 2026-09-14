@@ -35,8 +35,8 @@ Given a foul incident filmed from multiple camera angles, Hakam:
         v
    HakamContract (JSON)  { labels + confidences only }
         |
-        v  FAISS retrieval over the Laws of the Game
-        v  Claude
+        v  tag + multilingual E5 retrieval over the Laws of the Game
+        v  OpenAI GPT-5 nano + grounded-output guardrails
         |
         v
    Arabic explanation
@@ -57,8 +57,8 @@ Full diagrams: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 | CV baseline | **MViT-v2-S** (torchvision) | Reproduces the published SoccerNet-MVFoul result. Pretrained on Kinetics-400 |
 | CV experiment | **VideoMAE** — `MCG-NJU/videomae-base-finetuned-kinetics` | Self-supervised video pretraining, stronger in the small-data regime (3,901 clips) |
 | CV iteration | `MCG-NJU/videomae-small-finetuned-kinetics` | Faster variant for hyperparameter sweeps |
-| LLM | **Claude** (`claude-sonnet-5`) | Generates the Arabic explanation from the contract |
-| Embeddings | multilingual sentence-transformer | Must handle Arabic — see open question below |
+| LLM | **OpenAI GPT-5 nano** (`gpt-5-nano`) | Lowest-cost OpenAI model used for the grounded Arabic explanation |
+| Embeddings | `intfloat/multilingual-e5-base` | Multilingual semantic retrieval over Arabic and English law text |
 
 The backbone stays **frozen**. Embeddings are computed once and cached to disk; only the
 pooling layer and the cascade heads are trained. On 3,901 samples this usually beats full
@@ -71,19 +71,38 @@ fine-tuning, and it turns each experiment from hours into seconds.
 | Deep learning | PyTorch |
 | Video decoding | PyAV |
 | Dataset download | `SoccerNet` package |
-| Vector search | FAISS (CPU — the Laws corpus is small) |
+| Vector search | NumPy cosine similarity + contract-tag overlap |
 | Metrics | scikit-learn — balanced accuracy, macro-F1, confusion matrix |
 | Prototype UI | Streamlit |
 | Experiment tracking | MLflow |
 | Compute | Colab / Kaggle free tier |
 
-### Open decision
+### Grounded language layer
 
-The retrieval embedding model **must support Arabic**. Default sentence-transformers models are
-English-only and will return irrelevant articles on an Arabic corpus. `intfloat/multilingual-e5-base`
-is the leading candidate; test it against a handful of Law articles early. If Arabic retrieval
-quality is poor, the fallback is retrieving over the English Laws and generating the Arabic
-explanation from the retrieved English text.
+The retrieval model is `intfloat/multilingual-e5-base`, combined with exact overlap on labels
+from `HakamContract`. Its 47 curated bilingual IFAB chunks are small enough for NumPy cosine
+similarity, and their embeddings are cached locally. The generator receives only contract JSON
+and retrieved law text. Prompt v2 validates claims, repairs a bad response, and falls back to a
+safe Arabic draft if the low-cost model still changes a fact or breaks the four-line structure.
+
+Set the API key in the environment, then run the demo:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+export OPENAI_API_KEY="..."
+python scripts/demo_llm.py
+```
+
+Run the 24-case, two-prompt evaluation with:
+
+```bash
+python scripts/eval_llm.py
+```
+
+The generated CSV files are written under `artifacts/llm/` and remain local because `artifacts/`
+is gitignored.
 
 ## Data
 
@@ -103,8 +122,11 @@ See [`data/README.md`](data/README.md).
 |---|---|
 | `README.md` | this file |
 | `data/` | dataset location (contents gitignored) |
-
-Source, notebooks, app and law-text directories are added as they are built.
+| `laws/corpus.json` | 47 curated bilingual IFAB rule chunks |
+| `src/llm/` | retrieval, prompts, generation, and faithfulness checks |
+| `scripts/demo_llm.py` | end-to-end mock-contract demo |
+| `scripts/eval_llm.py` | v1/v2 evaluation and manual-audit sample |
+| `docs/llm/REPORT.md` | language-layer design and measured results |
 
 ## Related work
 
@@ -121,7 +143,8 @@ from the video by a structured contract.
 
 ## Status
 
-Early development. Bootcamp capstone project.
+The language half is implemented and evaluated against `mock_contract()`. The CV model can be
+connected through the existing `HakamContract` boundary without exposing video to the LLM.
 
 ## Disclaimer
 
