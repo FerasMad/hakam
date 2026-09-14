@@ -22,15 +22,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src import config
 from src.contract import HakamContract, Prediction
 
-PREDICTIONS = config.ARTIFACTS / "runs" / "final" / "test_predictions.csv"
-OUT = config.ARTIFACTS / "contracts" / "test"
 KEYS = config.PROJECT_ROOT / "frame_cache" / "test_keys_mv.json"
 
 
 def main() -> int:
-    df = pd.read_csv(PREDICTIONS, dtype={"action_id": str}).fillna("")
+    import argparse
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--run", default="final", help="ensemble directory under artifacts/runs")
+    ap.add_argument("--out", default="contracts", help="directory under artifacts")
+    args = ap.parse_args()
+    predictions = config.ARTIFACTS / "runs" / args.run / "test_predictions.csv"
+    out = config.ARTIFACTS / args.out / "test"
+
+    df = pd.read_csv(predictions, dtype={"action_id": str}).fillna("")
     views = Counter(str(a) for a, _ in json.loads(KEYS.read_text())) if KEYS.exists() else {}
-    OUT.mkdir(parents=True, exist_ok=True)
+    out.mkdir(parents=True, exist_ok=True)
+    model_version = f"hakam-{args.run}"
 
     index = []
     for r in df.to_dict("records"):
@@ -44,18 +52,18 @@ def main() -> int:
         }
         contract = HakamContract(
             action_id=r["action_id"], offence=offence, card=card, attributes=attributes,
-            model_version="hakam-mv-ensemble", num_views=views.get(r["action_id"], 0),
+            model_version=model_version, num_views=views.get(r["action_id"], 0),
         )
-        (OUT / f"{r['action_id']}.json").write_text(contract.to_json(), encoding="utf-8")
+        (out / f"{r['action_id']}.json").write_text(contract.to_json(), encoding="utf-8")
         index.append({
             "action_id": r["action_id"], "abstain": contract.should_abstain(),
             "offence": offence.label, "card": card.label if card else None,
             "truth": {k: r.get(f"{k}_label", "") for k in ("offence", "card", "action_class", "body_part")},
         })
 
-    (OUT.parent / "test_index.json").write_text(json.dumps(index, indent=2), encoding="utf-8")
+    (out.parent / "test_index.json").write_text(json.dumps(index, indent=2), encoding="utf-8")
     abstain = sum(i["abstain"] for i in index)
-    print(f"{len(index)} contracts -> {OUT}  ({abstain} abstain, {len(index) - abstain} explained)")
+    print(f"{len(index)} contracts -> {out}  ({abstain} abstain, {len(index) - abstain} explained)")
     return 0
 
 

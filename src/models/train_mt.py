@@ -38,7 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from src import config
 from src.data import transforms as tfm
 from src.features import extract as fx
-from src.models.data import IGNORE, TASKS, MultiViewDataset, normalise_on_device
+from src.models.data import IGNORE, TASKS, CombinedViews, MultiViewDataset, normalise_on_device
 from src.models.train import RUNS_DIR, balanced_accuracy, build_model
 
 LOSS_WEIGHTS = {"card": 1.0, "offence": 1.0, "action_class": 0.5, "body_part": 0.5}
@@ -266,6 +266,13 @@ def main() -> int:
     ap.add_argument("--balance", default=None, choices=list(TASKS),
                     help="sample clips class-balanced for this task instead of weighting its loss")
     ap.add_argument("--loss-weights", nargs="*", default=[], metavar="TASK=W")
+    ap.add_argument("--mixup", type=float, default=0.0, help="mixup Beta alpha, 0 = off")
+    ap.add_argument("--soft-between", action="store_true",
+                    help="train on 'Between' offences as a 0.5 offence target")
+    ap.add_argument("--train-splits", nargs="+", default=["train"], choices=["train", "valid"])
+    ap.add_argument("--no-eval", action="store_true", help="skip validation (refit on train+valid)")
+    ap.add_argument("--stop-epoch", type=int, default=0,
+                    help="stop after this epoch while keeping the --epochs lr schedule")
     ap.add_argument("--batch-size", type=int, default=8)
     ap.add_argument("--num-workers", type=int, default=min(8, os.cpu_count() or 2))
     ap.add_argument("--seed", type=int, default=config.SEED)
@@ -291,18 +298,23 @@ def main() -> int:
     print(f"run={args.name}  device={device}  backbone={args.backbone}  tasks={tasks}  "
           f"views={args.views}  ema={args.ema}  soft={args.soft_borderline}  seed={args.seed}")
 
-    train_ds = MultiViewDataset("train", tasks, args.cache_tag, augment, args.views,
-                                args.soft_borderline)
-    valid_ds = MultiViewDataset("valid", tasks, args.cache_tag, None, args.views)
-    for ds in (train_ds, valid_ds):
+    parts = []
+    for split in args.train_splits:
+        part = MultiViewDataset(split, tasks, args.cache_tag, augment, args.views,
+                                args.soft_borderline, soft_between=args.soft_between)
+        part.split = "train"          # a refit trains on valid clips: augment them like train
+        parts.append(part)
+    valid_ds = None if args.no_eval else MultiViewDataset("valid", tasks, args.cache_tag, None, args.views)
+    for ds in parts + ([valid_ds] if valid_ds is not None else []):
         if args.limit:
-            for attr in ("rows", "labels", "soft_card", "action_ids", "matches"):
+            for attr in ("rows", "labels", "soft_card", "soft_offence", "action_ids", "matches"):
                 setattr(ds, attr, getattr(ds, attr)[: args.limit])
         print("  " + ds.distribution())
+    train_ds = parts[0] if len(parts) == 1 else CombinedViews(parts)
 
     sampler = balanced_sampler(train_ds, args.balance) if args.balance else None
     train_loader = loader(train_ds, args.batch_size, args.num_workers, True, sampler)
-    valid_loader = loader(valid_ds, args.batch_size, args.num_workers, False)
+    valid_loader = None if valid_ds is None else loader(valid_ds, args.batch_size, args.num_workers, False)
 
     model = MultiTaskVideoMAE(args.backbone, tasks, args.freeze_blocks, args.head_dropout).to(device)
     weights = {t: train_ds.class_weights(t).to(device) for t in tasks}
@@ -338,14 +350,28 @@ def main() -> int:
         for step, batch in enumerate(train_loader, 1):
             x = normalise_on_device(batch["pixel_values"].to(device, non_blocking=True))
             y = batch["labels"].to(device, non_blocking=True)
-            soft = batch["soft_card"].to(device, non_blocking=True)
+            soft = {"card": batch["soft_card"].to(device, non_blocking=True),
+                    "offence": batch["soft_offence"].to(device, non_blocking=True)}
+            lam, perm = 1.0, None
+            if args.mixup > 0:
+                # Blend two clips and both sets of targets. The strongest cheap
+                # regulariser for a small video set; it is what lets 50 epochs help.
+                lam = float(np.random.beta(args.mixup, args.mixup))
+                perm = torch.randperm(x.size(0), device=device)
+                x = lam * x + (1.0 - lam) * x[perm]
             with torch.autocast("cuda", enabled=use_amp):
                 out = model(x)
-            loss = sum(
-                loss_weights[t] * task_loss(out[t], y[:, j], weights[t], args.label_smoothing,
-                                            soft if t == "card" else None)
-                for j, t in enumerate(tasks)
-            )
+
+            def batch_loss(idx):
+                return sum(
+                    loss_weights[t] * task_loss(
+                        out[t], y[idx, j] if idx is not None else y[:, j], weights[t],
+                        args.label_smoothing,
+                        None if t not in soft else (soft[t][idx] if idx is not None else soft[t]))
+                    for j, t in enumerate(tasks)
+                )
+
+            loss = batch_loss(None) if perm is None else lam * batch_loss(None) + (1 - lam) * batch_loss(perm)
             scaler.scale(loss).backward()
             scaler.step(optimiser)
             scaler.update()
@@ -358,9 +384,15 @@ def main() -> int:
                 print(f"    epoch {epoch} step {step}/{len(train_loader)} loss {total/step:.4f}")
 
         eval_model = ema.module if ema is not None else model
+        train_loss = total / max(1, len(train_loader))
+        if valid_ds is None:
+            history.append({"epoch": epoch, "train_loss": round(train_loss, 4)})
+            print(f"  epoch {epoch}: train loss {train_loss:.4f}  ({(time.time()-t0)/60:.1f} min)")
+            if args.stop_epoch and epoch >= args.stop_epoch:
+                break
+            continue
         probs = predict(eval_model, valid_loader, device, tasks)
         metrics = evaluate(valid_ds, probs)
-        train_loss = total / max(1, len(train_loader))
         entry = {"epoch": epoch, "train_loss": round(train_loss, 4),
                  "valid_loss": metrics[primary]["balanced_nll"],
                  "valid_balanced_accuracy": metrics[primary]["balanced_accuracy"]}
@@ -376,8 +408,28 @@ def main() -> int:
                     "probs": probs}
             if args.select == "best":
                 best["state"] = {k: v.detach().cpu().clone() for k, v in eval_model.state_dict().items()}
+        if args.stop_epoch and epoch >= args.stop_epoch:
+            break
 
     final_model = ema.module if ema is not None else model
+    if valid_ds is None:
+        for split in args.predict_splits:
+            ds = MultiViewDataset(split, tasks, args.cache_tag, None, args.views, require_label=False)
+            s = action_scores(ds, predict(final_model, loader(ds, args.batch_size, args.num_workers, False),
+                                          device, tasks))
+            np.savez(out_dir / f"{split}_scores.npz", **s)
+            print(f"  {split}: scored {len(s['action_ids'])} actions (no metrics computed)")
+        if args.save:
+            torch.save(final_model.state_dict(), out_dir / "final.pt")
+        (out_dir / "metrics.json").write_text(json.dumps({
+            "run": args.name, "mode": "refit", "stage": primary, "tasks": tasks,
+            "train_splits": args.train_splits, "backbone": args.backbone, "epochs": args.epochs,
+            "stop_epoch": args.stop_epoch, "minutes": round((time.time() - t_start) / 60, 1),
+            "argmax": {"balanced_accuracy": None}, "selective": {"selective_accuracy": None},
+            "hyperparameters": vars(args), "history": history,
+        }, indent=2, default=str), encoding="utf-8")
+        print(f"=== {args.name} refit done ({len(history)} epochs) -> {out_dir}")
+        return 0
     if args.select == "best":
         # Long runs overfit after the peak; score valid and test with the checkpoint
         # chosen on valid, never the last epoch.
@@ -411,7 +463,8 @@ def main() -> int:
         "hyperparameters": {k: getattr(args, k) for k in
                             ("lr", "head_lr", "weight_decay", "label_smoothing", "head_dropout",
                              "ema", "soft_borderline", "batch_size", "seed", "balance",
-                             "warmup_epochs", "select", "llrd", "freeze_blocks")},
+                             "warmup_epochs", "select", "llrd", "freeze_blocks",
+                             "mixup", "soft_between", "epochs")},
         "loss_weights": loss_weights,
         "history": history,
     }

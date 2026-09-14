@@ -28,7 +28,8 @@ def main() -> int:
     runs = []
     for path in sorted(RUNS_DIR.glob("*/metrics.json")):
         m = json.loads(path.read_text(encoding="utf-8"))
-        if m.get("history") and not m["run"].startswith("smoke"):
+        if (m.get("history") and "valid_loss" in m["history"][0]
+                and not m["run"].startswith("smoke")):
             runs.append(m)
 
     for m in runs:

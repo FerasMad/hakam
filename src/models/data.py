@@ -230,7 +230,8 @@ class MultiViewDataset(Dataset):
 
     def __init__(self, split: str, tasks: list[str], cache_tag: str = "mv",
                  augment: tfm.AugmentSpec | None = None, views: str = "all",
-                 soft_borderline: bool = False, require_label: bool = True):
+                 soft_borderline: bool = False, require_label: bool = True,
+                 soft_between: bool = False):
         suffix = f"_{cache_tag}" if cache_tag else ""
         frames_path = CACHE_DIR / f"{split}_frames{suffix}.npy"
         if not frames_path.exists():
@@ -253,7 +254,7 @@ class MultiViewDataset(Dataset):
         else:
             candidates = range(len(keys))
 
-        rows, labels, soft, action_ids, matches = [], [], [], [], []
+        rows, labels, soft, soft_off, action_ids, matches = [], [], [], [], [], []
         for i in candidates:
             aid = str(keys[i][0])
             if aid not in manifest.index:
@@ -264,17 +265,22 @@ class MultiViewDataset(Dataset):
             if (soft_borderline and split == "train" and "card" in tasks
                     and rec.get("severity") == "borderline_no_yellow"):
                 s = 0.5
-            if require_label and all(v == IGNORE for v in y) and s < 0:
+            # "Between" is the referee saying the offence itself is uncertain.
+            so = 0.5 if (soft_between and split == "train" and "offence" in tasks
+                         and rec.get("offence") == "between") else -1.0
+            if require_label and all(v == IGNORE for v in y) and s < 0 and so < 0:
                 continue
             rows.append(i)
             labels.append(y)
             soft.append(s)
+            soft_off.append(so)
             action_ids.append(aid)
             matches.append(str(rec.get("source_match", "")).replace("\\", "/"))
 
         self.rows = np.asarray(rows, dtype=np.int64)
         self.labels = np.asarray(labels, dtype=np.int64).reshape(len(rows), len(tasks))
         self.soft_card = np.asarray(soft, dtype=np.float32)
+        self.soft_offence = np.asarray(soft_off, dtype=np.float32)
         self.action_ids = np.asarray(action_ids)
         self.matches = np.asarray(matches)
         self.tasks, self.split, self.augment = list(tasks), split, augment
@@ -306,7 +312,21 @@ class MultiViewDataset(Dataset):
             frames = tfm.apply_clip(frames, params)
         x = torch.from_numpy(frames).permute(0, 3, 1, 2)
         return {"pixel_values": x, "labels": torch.from_numpy(self.labels[idx]),
-                "soft_card": torch.tensor(self.soft_card[idx]), "index": idx}
+                "soft_card": torch.tensor(self.soft_card[idx]),
+                "soft_offence": torch.tensor(self.soft_offence[idx]), "index": idx}
+
+
+class CombinedViews(torch.utils.data.ConcatDataset):
+    """Several MultiViewDatasets trained as one - the refit on train + valid."""
+
+    def __init__(self, parts: list[MultiViewDataset]):
+        super().__init__(parts)
+        self.tasks, self.split = parts[0].tasks, "+".join(p.split for p in parts)
+        for attr in ("labels", "soft_card", "soft_offence", "action_ids", "matches"):
+            setattr(self, attr, np.concatenate([getattr(p, attr) for p in parts]))
+
+    class_weights = MultiViewDataset.class_weights
+    distribution = MultiViewDataset.distribution
 
 
 def normalise_on_device(x: torch.Tensor) -> torch.Tensor:

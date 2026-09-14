@@ -45,6 +45,34 @@ def load_mean(runs: list[str], split: str, task_runs: dict[str, list[str]] | Non
     return out
 
 
+ACTION_GROUPS = {          # Law 12 families; tackling vs standing tackling is the
+    "tackle": ["standing tackling", "tackling"],   # annotators' most common confusion
+    "challenge": ["challenge", "pushing"],
+    "holding": ["holding"],
+    "elbowing": ["elbowing"],
+    "high leg": ["high leg"],
+    "dive": ["dive"],
+}
+
+
+def grouped_action(labels: np.ndarray, probs: np.ndarray, matches: np.ndarray) -> dict:
+    """Balanced accuracy after merging action classes into Law 12 families (probabilities summed)."""
+    from src.models.train import balanced_accuracy
+    from src.models.train_mt import clustered_ci
+
+    classes = TASKS["action_class"]
+    keep = labels != IGNORE
+    y, p = labels[keep], probs[keep]
+    group_of = {classes.index(c): g for g, members in enumerate(ACTION_GROUPS.values()) for c in members}
+    gp = np.zeros((len(y), len(ACTION_GROUPS)))
+    for i, g in group_of.items():
+        gp[:, g] += p[:, i]
+    gy = np.array([group_of[v] for v in y])
+    pred = gp.argmax(1)
+    return {"groups": list(ACTION_GROUPS), "balanced_accuracy": round(balanced_accuracy(gy, pred), 4),
+            "accuracy": round(float((pred == gy).mean()), 4), "ci95": clustered_ci(gy, pred, matches[keep])}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", nargs="+", required=True)
@@ -71,6 +99,9 @@ def main() -> int:
         print(f"  {t:13s} ba {m['balanced_accuracy']:.3f} {m['ci95']}  "
               f"tuned {m.get('balanced_accuracy_tuned', float('nan')):.3f} "
               f"@ {report['thresholds'].get(t)}  recall {m['per_class_recall']}")
+        if t == "action_class":
+            report["valid"]["action_group"] = g = grouped_action(y, p, valid["matches"])
+            print(f"  {'action_group':13s} ba {g['balanced_accuracy']:.3f} {g['ci95']}  (6 Law 12 families)")
 
     out = RUNS_DIR / args.name
     out.mkdir(parents=True, exist_ok=True)
@@ -88,6 +119,9 @@ def main() -> int:
             print(f"  {t:13s} ba {m['balanced_accuracy']:.3f} {m['ci95']}  "
                   f"acc {m['accuracy']:.3f} (majority {m['majority_accuracy']:.3f})  "
                   f"selective@60% {m['selective_accuracy_60']:.3f}  recall {m['per_class_recall']}")
+            if t == "action_class":
+                report["test"]["action_group"] = g = grouped_action(y, p, test["matches"])
+                print(f"  {'action_group':13s} ba {g['balanced_accuracy']:.3f} {g['ci95']}  (6 Law 12 families)")
             pred = (p[:, 1] >= thr).astype(int) if thr is not None else p.argmax(1)
             rows[f"{t}_pred"] = [TASKS[t][i] for i in pred]
             rows[f"{t}_confidence"] = np.round(p[np.arange(len(pred)), pred], 4)
