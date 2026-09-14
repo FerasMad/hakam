@@ -197,6 +197,29 @@ def evaluate(ds: MultiViewDataset, probs: dict) -> dict:
 # Training
 # --------------------------------------------------------------------------
 
+def param_groups(model: MultiTaskVideoMAE, lr: float, head_lr: float, llrd: float) -> list[dict]:
+    """AdamW groups: heads at ``head_lr``; backbone at ``lr``, or with layer-wise decay.
+
+    With ``llrd`` > 0 block i of n trains at lr * llrd**(n-1-i): the top block at
+    ``lr``, earlier blocks progressively slower. That is what lets more blocks be
+    unfrozen without wiping the pretrained low-level features.
+    """
+    head = [p for p in model.heads.parameters() if p.requires_grad]
+    seen = {id(p) for p in head}
+    groups = [{"params": head, "lr": head_lr}]
+    if llrd > 0:
+        layers = model.videomae.encoder.layer
+        for i, layer in enumerate(layers):
+            params = [p for p in layer.parameters() if p.requires_grad]
+            if params:
+                groups.append({"params": params, "lr": lr * llrd ** (len(layers) - 1 - i)})
+                seen.update(id(p) for p in params)
+    rest = [p for p in model.parameters() if p.requires_grad and id(p) not in seen]
+    if rest:
+        groups.append({"params": rest, "lr": lr})
+    return groups
+
+
 def loader(ds, batch_size, workers, train, sampler=None):
     return DataLoader(ds, batch_size=batch_size, shuffle=train and sampler is None,
                       sampler=sampler, drop_last=train, num_workers=workers,
@@ -236,6 +259,10 @@ def main() -> int:
     ap.add_argument("--label-smoothing", type=float, default=0.1)
     ap.add_argument("--head-dropout", type=float, default=0.3)
     ap.add_argument("--ema", type=float, default=0.0, help="EMA decay, 0 = off")
+    ap.add_argument("--warmup-epochs", type=int, default=1)
+    ap.add_argument("--llrd", type=float, default=0.0, help="layer-wise lr decay, 0 = off")
+    ap.add_argument("--select", default="final", choices=["final", "best"],
+                    help="which epoch's weights score valid/test")
     ap.add_argument("--balance", default=None, choices=list(TASKS),
                     help="sample clips class-balanced for this task instead of weighting its loss")
     ap.add_argument("--loss-weights", nargs="*", default=[], metavar="TASK=W")
@@ -252,6 +279,9 @@ def main() -> int:
     np.random.seed(args.seed)
     device = fx.resolve_device()
     use_amp = device.type == "cuda"
+    if use_amp:
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
     tasks = args.tasks
     primary = "card" if "card" in tasks else tasks[0]
     augment = tfm.MILD_V1 if args.augment == "mild_aug_v1" else None
@@ -281,15 +311,10 @@ def main() -> int:
     loss_weights = dict(LOSS_WEIGHTS)
     loss_weights.update({k: float(v) for k, v in (kv.split("=") for kv in args.loss_weights)})
 
-    head = list(model.heads.parameters())
-    head_ids = {id(p) for p in head}
-    body = [p for p in model.parameters() if p.requires_grad and id(p) not in head_ids]
-    optimiser = torch.optim.AdamW(
-        [{"params": body, "lr": args.lr}, {"params": head, "lr": args.head_lr}],
-        weight_decay=args.weight_decay,
-    )
+    optimiser = torch.optim.AdamW(param_groups(model, args.lr, args.head_lr, args.llrd),
+                                  weight_decay=args.weight_decay)
     steps = max(1, args.epochs * len(train_loader))
-    warmup = max(1, min(len(train_loader), steps // 2))
+    warmup = max(1, min(args.warmup_epochs * len(train_loader), steps // 2))
 
     def lr_factor(step: int) -> float:
         if step < warmup:
@@ -347,9 +372,18 @@ def main() -> int:
               + f"  ({(time.time()-t0)/60:.1f} min)")
 
         if metrics[primary]["balanced_accuracy"] > best["ba"]:
-            best = {"ba": metrics[primary]["balanced_accuracy"], "epoch": epoch, "metrics": metrics}
+            best = {"ba": metrics[primary]["balanced_accuracy"], "epoch": epoch, "metrics": metrics,
+                    "probs": probs}
+            if args.select == "best":
+                best["state"] = {k: v.detach().cpu().clone() for k, v in eval_model.state_dict().items()}
 
     final_model = ema.module if ema is not None else model
+    if args.select == "best":
+        # Long runs overfit after the peak; score valid and test with the checkpoint
+        # chosen on valid, never the last epoch.
+        final_model.load_state_dict(best["state"])
+        probs, metrics = best["probs"], best["metrics"]
+        print(f"  selected epoch {best['epoch']} ({primary} ba {best['ba']:.3f})")
     np.savez(out_dir / "valid_scores.npz", **action_scores(valid_ds, probs))
     for split in args.predict_splits:
         ds = MultiViewDataset(split, tasks, args.cache_tag, None, args.views, require_label=False)
@@ -376,7 +410,8 @@ def main() -> int:
         "best": best["metrics"], "final": metrics,
         "hyperparameters": {k: getattr(args, k) for k in
                             ("lr", "head_lr", "weight_decay", "label_smoothing", "head_dropout",
-                             "ema", "soft_borderline", "batch_size", "seed", "balance")},
+                             "ema", "soft_borderline", "batch_size", "seed", "balance",
+                             "warmup_epochs", "select", "llrd", "freeze_blocks")},
         "loss_weights": loss_weights,
         "history": history,
     }
