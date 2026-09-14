@@ -58,7 +58,8 @@ def sync() -> None:
     """Copy new or changed files to Drive; skips identical ones so repeated saves stay cheap."""
     if cfg["smoke"] or not DRIVE.exists():
         return
-    for src_root, name in ((RUNS, "runs"), (ROOT / "artifacts" / "contracts_v2", "contracts_v2")):
+    for src_root, name in ((RUNS, "runs"), (ROOT / "artifacts" / cfg["contracts"], cfg["contracts"]),
+                           (ROOT / "logs", "logs")):
         if not src_root.exists():
             continue
         for f in src_root.rglob("*"):
@@ -150,9 +151,9 @@ def tta() -> list[str]:
 def mixup() -> dict:
     longs = [r for r in cfg["long"] if has(r)]
     if not longs:
-        raise RuntimeError("no long run finished; nothing to base mixup on")
+        raise RuntimeError("no long run finished; nothing to base the extra run on")
     base = max(longs, key=lambda r: valid_score([r], "card"))
-    code = run(["-m", "src.models.train_mt", *recipe(base), "--mixup", "0.4", "--soft-between",
+    code = run(["-m", "src.models.train_mt", *recipe(base), *cfg["extra_args"],
                 "--select", "best", "--predict-splits", "test", "--save", "--name", cfg["mixup"]])
     if code == 0 and (RUNS / cfg["mixup"] / "final.pt").exists():
         run(["scripts/tta.py", "--runs", cfg["mixup"], "--num-workers", cfg["workers"]])
@@ -223,21 +224,31 @@ def refit() -> dict:
 
 
 def main() -> int:
+    import shlex
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--skip", nargs="*", default=[])
+    ap.add_argument("--base", nargs="*", default=["mv10_multitask", "mv12_s7", "mv12_s13"])
+    ap.add_argument("--attr", nargs="*", default=["mv13_attr"])
+    ap.add_argument("--long", nargs="*", default=["mv14_long50", "mv15_llrd50"])
+    ap.add_argument("--extra-name", default="mv16_mixup50")
+    ap.add_argument("--extra-args", default="--mixup 0.4 --soft-between",
+                    help="flags added to the best long recipe for the extra run (last value wins)")
+    ap.add_argument("--final-name", default="final_v2")
+    ap.add_argument("--contracts", default="contracts_v2")
+    ap.add_argument("--refit-name", default="refit_trainvalid")
     args = ap.parse_args()
 
     if args.smoke:
         cfg.update(smoke=True, base=["smoke_mv"], attr=["smoke_attr"], long=["smoke_long"],
                    mixup="smoke_mix", final="smoke_final_v2", contracts="smoke_contracts_v2",
-                   refit="smoke_refit", workers="0",
+                   refit="smoke_refit", workers="0", extra_args=shlex.split(args.extra_args),
                    overrides=["--epochs", "1", "--batch-size", "4", "--num-workers", "0"])
     else:
-        cfg.update(smoke=False, base=["mv10_multitask", "mv12_s7", "mv12_s13"], attr=["mv13_attr"],
-                   long=["mv14_long50", "mv15_llrd50"], mixup="mv16_mixup50", final="final_v2",
-                   contracts="contracts_v2", refit="refit_trainvalid", workers="10",
-                   overrides=["--num-workers", "10"])
+        cfg.update(smoke=False, base=args.base, attr=args.attr, long=args.long, mixup=args.extra_name,
+                   final=args.final_name, contracts=args.contracts, refit=args.refit_name,
+                   workers="10", extra_args=shlex.split(args.extra_args), overrides=["--num-workers", "10"])
 
     for name, fn in (("wait", wait), ("tta", tta), ("mixup", mixup), ("select", select),
                      ("final", final), ("refit", refit)):
