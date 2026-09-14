@@ -167,6 +167,6 @@ CLASS_WEIGHTING = True   # balanced accuracy is the metric; weight the rare clas
 # LLM
 # --------------------------------------------------------------------------
 
-LLM_MODEL = "claude-sonnet-5"
+LLM_MODEL = "gpt-5-nano"
 LLM_MAX_TOKENS = 1024
 RETRIEVAL_TOP_K = 3
