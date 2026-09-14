@@ -194,6 +194,128 @@ class FoulDataset(Dataset):
         }
 
 
+TASKS = {
+    "offence": ["no_offence", "offence"],
+    "card": ["no_card", "card"],
+    "action_class": ["standing tackling", "tackling", "challenge", "holding",
+                     "elbowing", "high leg", "pushing", "dive"],
+    "body_part": ["under_body", "upper_body"],
+}
+IGNORE = -100
+
+
+def _task_label(rec, task: str) -> int:
+    """Class index for one task, or IGNORE when the annotator gave no usable label."""
+    classes = TASKS[task]
+    if task in ("offence", "card"):
+        value = rec[f"target_{task}"] if bool(rec[f"supervise_{task}"]) else None
+    elif task == "action_class":
+        value = str(rec.get("Action class", "")).strip().lower()
+    else:
+        value = str(rec.get("Bodypart", "")).strip().lower().replace(" ", "_")
+    return classes.index(value) if value in classes else IGNORE
+
+
+class MultiViewDataset(Dataset):
+    """Every view of every action, with a label per task.
+
+    Views are separate samples in training - the replays roughly double what the
+    model sees - and are averaged per action at evaluation. Frames are cached at
+    224x224 and returned as uint8; normalisation happens on the GPU.
+
+    ``soft_borderline`` gives severity-2.0 actions ("between no card and yellow")
+    a card target of 0.5 in training instead of dropping them. Evaluation never
+    uses it, so valid and test keep the same hard-labelled actions.
+    """
+
+    def __init__(self, split: str, tasks: list[str], cache_tag: str = "mv",
+                 augment: tfm.AugmentSpec | None = None, views: str = "all",
+                 soft_borderline: bool = False, require_label: bool = True):
+        suffix = f"_{cache_tag}" if cache_tag else ""
+        frames_path = CACHE_DIR / f"{split}_frames{suffix}.npy"
+        if not frames_path.exists():
+            raise FileNotFoundError(
+                f"no frame cache at {frames_path}. Run: python scripts/cache_frames.py "
+                f"--splits {split} --all-views --size 224 --tag {cache_tag}"
+            )
+        self.frames = np.load(frames_path, mmap_mode="r")
+        keys = json.loads((CACHE_DIR / f"{split}_keys{suffix}.json").read_text())
+        manifest = pd.read_csv(
+            MANIFEST_DIR / f"actions_{split}.csv", dtype={"action_id": str}
+        ).set_index("action_id")
+
+        if views == "last":
+            last = {}
+            for i, (aid, clip) in enumerate(keys):
+                if aid not in last or clip > keys[last[aid]][1]:
+                    last[aid] = i
+            candidates = sorted(last.values())
+        else:
+            candidates = range(len(keys))
+
+        rows, labels, soft, action_ids, matches = [], [], [], [], []
+        for i in candidates:
+            aid = str(keys[i][0])
+            if aid not in manifest.index:
+                continue
+            rec = manifest.loc[aid]
+            y = [_task_label(rec, t) for t in tasks]
+            s = -1.0
+            if (soft_borderline and split == "train" and "card" in tasks
+                    and rec.get("severity") == "borderline_no_yellow"):
+                s = 0.5
+            if require_label and all(v == IGNORE for v in y) and s < 0:
+                continue
+            rows.append(i)
+            labels.append(y)
+            soft.append(s)
+            action_ids.append(aid)
+            matches.append(str(rec.get("source_match", "")).replace("\\", "/"))
+
+        self.rows = np.asarray(rows, dtype=np.int64)
+        self.labels = np.asarray(labels, dtype=np.int64).reshape(len(rows), len(tasks))
+        self.soft_card = np.asarray(soft, dtype=np.float32)
+        self.action_ids = np.asarray(action_ids)
+        self.matches = np.asarray(matches)
+        self.tasks, self.split, self.augment = list(tasks), split, augment
+
+    def __len__(self) -> int:
+        return len(self.rows)
+
+    def class_weights(self, task: str) -> torch.Tensor:
+        col = self.labels[:, self.tasks.index(task)]
+        counts = np.bincount(col[col != IGNORE], minlength=len(TASKS[task])).astype(np.float32)
+        counts[counts == 0] = 1.0
+        return torch.tensor(counts.sum() / (len(counts) * counts), dtype=torch.float32)
+
+    def distribution(self) -> str:
+        parts = []
+        for j, task in enumerate(self.tasks):
+            col = self.labels[:, j]
+            counts = np.bincount(col[col != IGNORE], minlength=len(TASKS[task]))
+            parts.append(f"{task} " + "/".join(str(c) for c in counts))
+        soft = int((self.soft_card >= 0).sum())
+        return (f"{self.split}: {len(self)} clips from {len(np.unique(self.action_ids))} actions  "
+                + "  ".join(parts) + (f"  soft-card {soft}" if soft else ""))
+
+    def __getitem__(self, idx: int) -> dict:
+        frames = np.array(self.frames[self.rows[idx]])          # copy off the read-only memmap
+        if self.augment is not None:
+            params = tfm.build_params(self.augment, self.split, np.random.default_rng(),
+                                      frames.shape[1:3])
+            frames = tfm.apply_clip(frames, params)
+        x = torch.from_numpy(frames).permute(0, 3, 1, 2)
+        return {"pixel_values": x, "labels": torch.from_numpy(self.labels[idx]),
+                "soft_card": torch.tensor(self.soft_card[idx]), "index": idx}
+
+
+def normalise_on_device(x: torch.Tensor) -> torch.Tensor:
+    """uint8 (B,T,C,H,W) -> ImageNet-normalised float, on whatever device x is on."""
+    mean = torch.as_tensor(MEAN, device=x.device).view(1, 1, 3, 1, 1)
+    std = torch.as_tensor(STD, device=x.device).view(1, 1, 3, 1, 1)
+    return (x.float() / 255.0 - mean) / std
+
+
 def build_loaders(
     stage: str = "card",
     geometry_mode: str = "crop",

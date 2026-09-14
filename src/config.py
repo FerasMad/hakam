@@ -68,6 +68,13 @@ BACKBONES = {
         "name": "MCG-NJU/videomae-base-finetuned-kinetics",
         "dim": 768,
     },
+    # Same architecture fine-tuned on Something-Something v2: motion and
+    # interactions rather than scene appearance.
+    "videomae_base_ssv2": {
+        "source": "huggingface",
+        "name": "MCG-NJU/videomae-base-finetuned-ssv2",
+        "dim": 768,
+    },
     # Faster variant for iteration.
     "videomae_small": {
         "source": "huggingface",

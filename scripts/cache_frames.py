@@ -55,8 +55,16 @@ def last_clip_per_action(clips) -> list[tuple[str, str, int]]:
     return sorted(rows, key=lambda r: int(r[0]) if r[0].isdigit() else r[0])
 
 
+def all_clips(clips) -> list[tuple[str, str, int]]:
+    """Every view of every action, grouped by action for view averaging."""
+    rows = [(str(r.action_id), str(r.path), int(r.clip_index)) for r in clips.itertuples()]
+    return sorted(rows, key=lambda r: (int(r[0]) if r[0].isdigit() else r[0], r[2]))
+
+
 def cache_split(split: str, force: bool, start: int = config.START_FRAME,
-                end: int = config.END_FRAME, tag: str | None = None) -> None:
+                end: int = config.END_FRAME, tag: str | None = None,
+                all_views: bool = False, size: int | None = None,
+                limit: int = 0) -> None:
     suffix = f"_{tag}" if tag else ""
     out = CACHE_DIR / f"{split}_frames{suffix}.npy"
     if out.exists() and not force:
@@ -65,7 +73,11 @@ def cache_split(split: str, force: bool, start: int = config.START_FRAME,
 
     split_dir = config.DATA_ROOT / "mvfouls" / config.SPLIT_DIRS[split]
     _, clips = load_split(split_dir)
-    rows = last_clip_per_action(clips)
+    if limit:
+        ids = sorted(clips["action_id"].unique(), key=lambda a: int(a) if str(a).isdigit() else a)
+        clips = clips[clips["action_id"].isin(ids[:limit])]
+    rows = all_clips(clips) if all_views else last_clip_per_action(clips)
+    frame_h, frame_w = (size, size) if size else (FRAME_H, FRAME_W)
 
     missing = [p for _, p, _ in rows if not Path(p).exists()]
     if missing:
@@ -74,28 +86,28 @@ def cache_split(split: str, force: bool, start: int = config.START_FRAME,
         )
 
     n = len(rows)
-    print(f"[{split}] {n:,} actions -> last clip each, "
-          f"{config.NUM_FRAMES} frames at {FRAME_H}x{FRAME_W}")
+    print(f"[{split}] {n:,} clips ({'all views' if all_views else 'last clip each'}), "
+          f"{config.NUM_FRAMES} frames at {frame_h}x{frame_w}")
 
     # Written straight to disk as a memmap: the train array is ~12.5 GB and
     # building it in RAM first would exhaust a Colab runtime.
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     arr = np.lib.format.open_memmap(
         out, mode="w+", dtype=np.uint8,
-        shape=(n, config.NUM_FRAMES, FRAME_H, FRAME_W, 3),
+        shape=(n, config.NUM_FRAMES, frame_h, frame_w, 3),
     )
 
     t0 = time.time()
     odd = 0
     for i, (_action_id, path, _idx) in enumerate(rows):
         frames = fx.sample_window(path, start=start, end=end)
-        if frames.shape[1:3] != (FRAME_H, FRAME_W):
-            # A few clips may differ. Resize rather than abort a run that is
-            # otherwise fine, but count them so it stays visible.
+        if frames.shape[1:3] != (frame_h, frame_w):
+            # Native clips are 224x398; --size squashes them here once, which is
+            # what the resize geometry did per batch. Other odd sizes are counted.
             import cv2
 
-            frames = np.stack([cv2.resize(f, (FRAME_W, FRAME_H)) for f in frames])
-            odd += 1
+            odd += frames.shape[1:3] != (FRAME_H, FRAME_W)
+            frames = np.stack([cv2.resize(f, (frame_w, frame_h)) for f in frames])
         arr[i] = frames
 
         if (i + 1) % 250 == 0 or i + 1 == n:
@@ -106,19 +118,19 @@ def cache_split(split: str, force: bool, start: int = config.START_FRAME,
     arr.flush()
     del arr
 
-    (CACHE_DIR / f"{split}_keys{suffix}.json").write_text(
-        json.dumps([r[0] for r in rows]), encoding="utf-8"
-    )
+    keys = [[r[0], r[2]] for r in rows] if all_views else [r[0] for r in rows]
+    (CACHE_DIR / f"{split}_keys{suffix}.json").write_text(json.dumps(keys), encoding="utf-8")
     (CACHE_DIR / f"{split}_meta{suffix}.json").write_text(
         json.dumps({
             "split": split,
-            "n_actions": n,
+            "n_clips": n,
             "num_frames": config.NUM_FRAMES,
-            "height": FRAME_H,
-            "width": FRAME_W,
+            "height": frame_h,
+            "width": frame_w,
             "start_frame": start,
             "end_frame": end,
-            "source": "last clip per action (a close-up 95% of the time)",
+            "source": "all views, keys are [action_id, clip_index]" if all_views
+                      else "last clip per action (a close-up 95% of the time)",
             "resized_clips": odd,
             "note": "raw decoded frames, BEFORE the backbone processor, so crop "
                     "vs resize stays a training-time choice",
@@ -140,12 +152,16 @@ def main() -> None:
     ap.add_argument("--end", type=int, default=config.END_FRAME)
     ap.add_argument("--tag", default=None,
                     help="write <split>_frames_<tag>.npy, leaving the default cache alone")
+    ap.add_argument("--all-views", action="store_true", help="every clip, not just the last")
+    ap.add_argument("--size", type=int, default=None, help="store frames resized to size x size")
+    ap.add_argument("--limit", type=int, default=0, help="first N actions only (smoke test)")
     args = ap.parse_args()
 
     print(f"window {args.start}-{args.end} "
           f"({(args.end - args.start)/25:.2f}s at 25fps)\n")
     for split in args.splits:
-        cache_split(split, args.force, args.start, args.end, args.tag)
+        cache_split(split, args.force, args.start, args.end, args.tag,
+                    args.all_views, args.size, args.limit)
     print(f"\ncache in {CACHE_DIR}")
 
 
