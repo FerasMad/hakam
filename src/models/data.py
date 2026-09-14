@@ -43,7 +43,7 @@ STAGES = {
 }
 
 
-def geometry(frames: np.ndarray, mode: str) -> np.ndarray:
+def geometry(frames: np.ndarray, mode: str, box=None) -> np.ndarray:
     """Take ``(T, 224, 398, 3)`` to ``(T, 224, 224, 3)``.
 
     ``crop`` reproduces the processor's default and loses the sides; ``resize``
@@ -52,11 +52,19 @@ def geometry(frames: np.ndarray, mode: str) -> np.ndarray:
     if mode == "crop":
         left = (frames.shape[2] - 224) // 2
         return frames[:, :, left : left + 224]
-    if mode == "resize":
+    if mode == "resize" or (mode == "zoom" and box is None):
         import cv2
 
         return np.stack([cv2.resize(f, (224, 224)) for f in frames])
-    raise ValueError(f"unknown geometry {mode!r}; use 'crop' or 'resize'")
+    if mode == "zoom":
+        # Player-centred crop: on wide shots a player is ~29 px tall, about two of
+        # VideoMAE's 16-px patches, so contact is sub-patch. Cropping around the
+        # contact zone before resizing gives each player several times more pixels.
+        import cv2
+
+        x0, y0, x1, y1 = box
+        return np.stack([cv2.resize(f[y0:y1, x0:x1], (224, 224)) for f in frames])
+    raise ValueError(f"unknown geometry {mode!r}; use 'crop', 'resize' or 'zoom'")
 
 
 def _severity_value(raw) -> float:
@@ -107,7 +115,7 @@ class FoulDataset(Dataset):
 
         # Cache row order is the source of truth; the manifest is looked up
         # against it, so a row can never be paired with another action's label.
-        rows, labels, severities = [], [], []
+        rows, labels, severities, matches = [], [], [], []
         for i, action_id in enumerate(keys):
             if action_id not in manifest.index:
                 continue
@@ -120,10 +128,23 @@ class FoulDataset(Dataset):
             rows.append(i)
             labels.append(self.classes.index(value))
             severities.append(_severity_value(rec.get("Severity_raw")))
+            matches.append(str(rec.get("source_match", "")).replace("\\", "/"))
 
         self.rows = np.asarray(rows, dtype=np.int64)
         self.labels = np.asarray(labels, dtype=np.int64)
         self.severities = np.asarray(severities, dtype=np.float32)
+        self.matches = np.asarray(matches)
+        self.keys = keys
+
+        self.boxes = {}
+        if geometry_mode == "zoom":
+            boxes_path = CACHE_DIR / f"{split}_boxes.json"
+            if not boxes_path.exists():
+                raise FileNotFoundError(
+                    f"no zoom boxes at {boxes_path}. Run: "
+                    f"python scripts/zoom_boxes.py --splits {split}"
+                )
+            self.boxes = json.loads(boxes_path.read_text())
         self.split = split
         self.stage = stage
         self.geometry_mode = geometry_mode
@@ -146,14 +167,18 @@ class FoulDataset(Dataset):
     def __getitem__(self, idx: int) -> dict:
         frames = np.asarray(self.frames[self.rows[idx]])        # (T,224,398,3)
 
-        # Augmentation runs on the native frame, before geometry, so a crop run
-        # and a resize run see the same jitter.
-        if self.augment is not None:
-            rng = np.random.default_rng(config.SEED + int(self.rows[idx]))
-            params = tfm.build_params(self.augment, self.split, rng, frames.shape[1:3])
-            frames = tfm.apply_clip(frames, params)
+        row = int(self.rows[idx])
+        frames = geometry(frames, self.geometry_mode, self.boxes.get(self.keys[row]))
 
-        frames = geometry(frames, self.geometry_mode)
+        # Fresh randomness on every call. Seeding by row gave each clip the same
+        # "random" transform every epoch, so augmentation did nothing to stop the
+        # model memorising the training set. build_params refuses non-train splits,
+        # so valid and test stay deterministic.
+        if self.augment is not None:
+            params = tfm.build_params(
+                self.augment, self.split, np.random.default_rng(), frames.shape[1:3]
+            )
+            frames = tfm.apply_clip(frames, params)
         x = frames.astype(np.float32) / 255.0
         x = (x - MEAN) / STD
         x = torch.from_numpy(x).permute(0, 3, 1, 2).contiguous()   # (T,C,H,W)
@@ -162,7 +187,7 @@ class FoulDataset(Dataset):
             "pixel_values": x,
             "label": torch.tensor(self.labels[idx]),
             "severity": torch.tensor(self.severities[idx]),
-            "row": int(self.rows[idx]),
+            "row": row,
         }
 
 

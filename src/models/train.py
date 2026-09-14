@@ -121,11 +121,46 @@ def selective_accuracy(
     }
 
 
+def clustered_ci(
+    labels: np.ndarray, scores: np.ndarray, matches: np.ndarray | None,
+    threshold: float = 0.5, n_boot: int = 1000, seed: int = config.SEED,
+) -> list[float] | None:
+    """95% bootstrap CI on balanced accuracy, resampling whole matches.
+
+    Incidents from one match share a referee and a broadcast, so they are not
+    independent. Resampling matches rather than incidents keeps that correlation,
+    which gives an honestly wider interval on a split with few matches.
+    """
+    if matches is None or len(matches) != len(labels):
+        return None
+    rng = np.random.default_rng(seed)
+    pred = (scores >= threshold).astype(int)
+    groups = [np.flatnonzero(matches == m) for m in np.unique(matches)]
+    stats = []
+    for _ in range(n_boot):
+        idx = np.concatenate([groups[i] for i in rng.integers(0, len(groups), len(groups))])
+        if len(np.unique(labels[idx])) < 2:
+            continue
+        stats.append(balanced_accuracy(labels[idx], pred[idx]))
+    if not stats:
+        return None
+    return [round(float(np.percentile(stats, 2.5)), 4), round(float(np.percentile(stats, 97.5)), 4)]
+
+
+def _matches_of(loader) -> np.ndarray | None:
+    ds = loader.dataset
+    if hasattr(ds, "indices"):                       # torch Subset
+        base = getattr(ds.dataset, "matches", None)
+        return None if base is None else base[np.asarray(ds.indices)]
+    return getattr(ds, "matches", None)
+
+
 # --------------------------------------------------------------------------
 # Model
 # --------------------------------------------------------------------------
 
-def build_model(backbone_key: str, num_labels: int, freeze_blocks: int):
+def build_model(backbone_key: str, num_labels: int, freeze_blocks: int,
+                head_dropout: float = 0.0):
     """VideoMAE with a fresh classification head.
 
     ``freeze_blocks`` freezes the patch embedding plus that many encoder layers.
@@ -146,6 +181,9 @@ def build_model(backbone_key: str, num_labels: int, freeze_blocks: int):
             "silently zeroes them; verify before trusting this run."
         )
     print(f"  restored {restored} attention biases")
+
+    if head_dropout > 0:
+        model.classifier = nn.Sequential(nn.Dropout(head_dropout), model.classifier)
 
     if freeze_blocks > 0:
         for p in model.videomae.embeddings.parameters():
@@ -219,14 +257,14 @@ def run_probe(args, loaders, device) -> dict:
 # --------------------------------------------------------------------------
 
 def run_finetune(args, loaders, device) -> dict:
-    model = build_model(args.backbone, 2, args.freeze_blocks).to(device)
+    model = build_model(args.backbone, 2, args.freeze_blocks, args.head_dropout).to(device)
 
     weights = loaders["train"].dataset.class_weights().to(device) \
         if hasattr(loaders["train"].dataset, "class_weights") else None
-    criterion = nn.CrossEntropyLoss(weight=weights)
+    criterion = nn.CrossEntropyLoss(weight=weights, label_smoothing=args.label_smoothing)
 
     params = [p for p in model.parameters() if p.requires_grad]
-    optimiser = torch.optim.AdamW(params, lr=args.lr, weight_decay=0.05)
+    optimiser = torch.optim.AdamW(params, lr=args.lr, weight_decay=args.weight_decay)
     steps = max(1, args.epochs * len(loaders["train"]))
     schedule = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, T_max=steps)
 
@@ -235,6 +273,7 @@ def run_finetune(args, loaders, device) -> dict:
 
     best = {"balanced_accuracy": -1.0}
     best_state = None
+    history = []
 
     for epoch in range(1, args.epochs + 1):
         model.train()
@@ -259,7 +298,13 @@ def run_finetune(args, loaders, device) -> dict:
 
         scores, labels = predict(model, loaders["valid"], device)
         bacc = balanced_accuracy(labels, (scores >= 0.5).astype(int))
-        print(f"  epoch {epoch}: loss {total/len(loaders['train']):.4f}  "
+        p_true = np.clip(np.where(labels == 1, scores, 1 - scores), 1e-7, 1.0)
+        valid_loss = float(-np.log(p_true).mean())
+        train_loss = total / len(loaders["train"])
+        history.append({"epoch": epoch, "train_loss": round(train_loss, 4),
+                        "valid_loss": round(valid_loss, 4),
+                        "valid_balanced_accuracy": round(bacc, 4)})
+        print(f"  epoch {epoch}: train loss {train_loss:.4f}  valid loss {valid_loss:.4f}  "
               f"valid balanced acc {bacc:.4f}  ({(time.time()-t0)/60:.1f} min)")
 
         if bacc > best["balanced_accuracy"]:
@@ -274,7 +319,7 @@ def run_finetune(args, loaders, device) -> dict:
         torch.save(best_state, out / "best.pt")
 
     return {"scores": best["scores"], "labels": best["labels"],
-            "best_epoch": best.get("epoch")}
+            "best_epoch": best.get("epoch"), "history": history}
 
 
 # --------------------------------------------------------------------------
@@ -283,12 +328,15 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Train one cascade stage")
     ap.add_argument("--mode", default="probe", choices=["probe", "finetune"])
     ap.add_argument("--stage", default="card", choices=["card", "offence"])
-    ap.add_argument("--geometry", default="crop", choices=["crop", "resize"])
+    ap.add_argument("--geometry", default="crop", choices=["crop", "resize", "zoom"])
     ap.add_argument("--backbone", default="videomae_small")
     ap.add_argument("--augment", default=None, choices=["mild_aug_v1"])
     ap.add_argument("--freeze-blocks", type=int, default=6)
     ap.add_argument("--epochs", type=int, default=8)
     ap.add_argument("--lr", type=float, default=3e-5)
+    ap.add_argument("--weight-decay", type=float, default=0.1)
+    ap.add_argument("--label-smoothing", type=float, default=0.1)
+    ap.add_argument("--head-dropout", type=float, default=0.3)
     ap.add_argument("--batch-size", type=int, default=8)
     ap.add_argument("--num-workers", type=int, default=2)
     ap.add_argument("--target-recall", type=float, default=0.85)
@@ -341,6 +389,11 @@ def main() -> int:
         "argmax": report(labels, scores, 0.5),
         recall_key: report(labels, scores, threshold),
         "selective": selective_accuracy(labels, scores, 0.6),
+        "balanced_accuracy_ci95": clustered_ci(labels, scores, _matches_of(loaders["valid"])),
+        "hyperparameters": {"lr": args.lr, "weight_decay": args.weight_decay,
+                            "label_smoothing": args.label_smoothing,
+                            "head_dropout": args.head_dropout},
+        "history": result.get("history", []),
     }
 
     out = RUNS_DIR / args.name
@@ -357,6 +410,7 @@ def main() -> int:
           f"   review load {r['review_load']:.0%}")
     print(f"  selective @{s['coverage']:.0%} coverage: accuracy "
           f"{s['selective_accuracy']:.3f}")
+    print(f"  balanced acc 95% CI (match-clustered): {metrics['balanced_accuracy_ci95']}")
     print(f"  -> {out}")
     return 0
 

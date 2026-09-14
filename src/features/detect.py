@@ -215,3 +215,40 @@ def draw_overlay(frame: np.ndarray, boxes: np.ndarray, out: Path) -> Path:
     out.parent.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(out), canvas)
     return out
+
+
+def contact_focus(boxes: np.ndarray) -> tuple[float, float, float] | None:
+    """Centre of the closest pair of players and the median player height.
+
+    Returns ``(cx, cy, median_height)`` in pixels, or ``None`` with fewer than two
+    players - there is no pair, so no contact point to zoom on.
+    """
+    if len(boxes) < 2:
+        return None
+    centres = np.stack([(boxes[:, 0] + boxes[:, 2]) / 2,
+                        (boxes[:, 1] + boxes[:, 3]) / 2], axis=1)
+    dist = np.linalg.norm(centres[:, None, :] - centres[None, :, :], axis=2)
+    np.fill_diagonal(dist, np.inf)
+    i, j = np.unravel_index(np.argmin(dist), dist.shape)
+    cx, cy = (centres[i] + centres[j]) / 2
+    return float(cx), float(cy), float(np.median(boxes[:, 3] - boxes[:, 1]))
+
+
+def zoom_box(
+    focus: tuple[float, float, float] | None,
+    height: int,
+    width: int,
+    scale: float = 4.0,
+    min_side: int = 112,
+) -> list[int] | None:
+    """Square crop around the contact point, ``scale`` player-heights wide.
+
+    Clamped to the frame. ``None`` means "no zoom, use the full frame".
+    """
+    if focus is None:
+        return None
+    cx, cy, h = focus
+    side = int(round(min(max(scale * h, min_side), height, width)))
+    x0 = int(round(min(max(cx - side / 2, 0), width - side)))
+    y0 = int(round(min(max(cy - side / 2, 0), height - side)))
+    return [x0, y0, x0 + side, y0 + side]
