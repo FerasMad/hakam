@@ -100,10 +100,22 @@ st.set_page_config(page_title="Hakam - VAR explainer", layout="wide")
 st.title("حكم — Hakam")
 st.caption("Vision model decides. The language model only sees the contract, never the video.")
 
+CONTRACTS = Path(__file__).resolve().parent.parent / "artifacts" / "contracts"
+
 with st.sidebar:
     st.header("Input")
-    source = st.radio("Contract source", ["Scenario", "Upload contract JSON"])
-    if source == "Scenario":
+    sources = ["Scenario", "Upload contract JSON"]
+    if (CONTRACTS / "test_index.json").exists():
+        sources.insert(0, "Test set (real model)")
+    source = st.radio("Contract source", sources)
+    if source == "Test set (real model)":
+        index = {i["action_id"]: i for i in json.loads((CONTRACTS / "test_index.json").read_text())}
+        aid = st.selectbox("Test action", list(index),
+                           format_func=lambda a: f"{a} - {index[a]['offence']} / {index[a]['card'] or '-'}")
+        contract = HakamContract.from_dict(
+            json.loads((CONTRACTS / "test" / f"{aid}.json").read_text(encoding="utf-8")))
+        st.caption(f"Referee label (not shown to the LLM): {index[aid]['truth']}")
+    elif source == "Scenario":
         contract = SCENARIOS[st.selectbox("Scenario", list(SCENARIOS))]()
     else:
         up = st.file_uploader("contract.json", type="json")
