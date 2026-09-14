@@ -197,10 +197,27 @@ def evaluate(ds: MultiViewDataset, probs: dict) -> dict:
 # Training
 # --------------------------------------------------------------------------
 
-def loader(ds, batch_size, workers, train):
-    return DataLoader(ds, batch_size=batch_size, shuffle=train, drop_last=train,
-                      num_workers=workers, pin_memory=torch.cuda.is_available(),
+def loader(ds, batch_size, workers, train, sampler=None):
+    return DataLoader(ds, batch_size=batch_size, shuffle=train and sampler is None,
+                      sampler=sampler, drop_last=train, num_workers=workers,
+                      pin_memory=torch.cuda.is_available(),
                       persistent_workers=train and workers > 0)
+
+
+def balanced_sampler(ds: MultiViewDataset, task: str):
+    """Draw clips so each class of ``task`` is seen equally often.
+
+    Offence is 724 no-offence clips against 5,687: class weights alone left the
+    head predicting "offence" for everything (no-offence recall 0.09 in mv10).
+    Clips without a label for the task keep the average weight.
+    """
+    from torch.utils.data import WeightedRandomSampler
+
+    col = ds.labels[:, ds.tasks.index(task)]
+    counts = np.bincount(col[col != IGNORE], minlength=len(TASKS[task])).astype(np.float64)
+    per_class = 1.0 / np.maximum(counts, 1)
+    w = np.where(col != IGNORE, per_class[np.clip(col, 0, None)], per_class.mean())
+    return WeightedRandomSampler(torch.as_tensor(w, dtype=torch.double), len(ds), replacement=True)
 
 
 def main() -> int:
@@ -219,6 +236,9 @@ def main() -> int:
     ap.add_argument("--label-smoothing", type=float, default=0.1)
     ap.add_argument("--head-dropout", type=float, default=0.3)
     ap.add_argument("--ema", type=float, default=0.0, help="EMA decay, 0 = off")
+    ap.add_argument("--balance", default=None, choices=list(TASKS),
+                    help="sample clips class-balanced for this task instead of weighting its loss")
+    ap.add_argument("--loss-weights", nargs="*", default=[], metavar="TASK=W")
     ap.add_argument("--batch-size", type=int, default=8)
     ap.add_argument("--num-workers", type=int, default=min(8, os.cpu_count() or 2))
     ap.add_argument("--seed", type=int, default=config.SEED)
@@ -250,11 +270,16 @@ def main() -> int:
                 setattr(ds, attr, getattr(ds, attr)[: args.limit])
         print("  " + ds.distribution())
 
-    train_loader = loader(train_ds, args.batch_size, args.num_workers, True)
+    sampler = balanced_sampler(train_ds, args.balance) if args.balance else None
+    train_loader = loader(train_ds, args.batch_size, args.num_workers, True, sampler)
     valid_loader = loader(valid_ds, args.batch_size, args.num_workers, False)
 
     model = MultiTaskVideoMAE(args.backbone, tasks, args.freeze_blocks, args.head_dropout).to(device)
     weights = {t: train_ds.class_weights(t).to(device) for t in tasks}
+    if args.balance:
+        weights[args.balance] = torch.ones_like(weights[args.balance])   # sampling already balances it
+    loss_weights = dict(LOSS_WEIGHTS)
+    loss_weights.update({k: float(v) for k, v in (kv.split("=") for kv in args.loss_weights)})
 
     head = list(model.heads.parameters())
     head_ids = {id(p) for p in head}
@@ -292,7 +317,7 @@ def main() -> int:
             with torch.autocast("cuda", enabled=use_amp):
                 out = model(x)
             loss = sum(
-                LOSS_WEIGHTS[t] * task_loss(out[t], y[:, j], weights[t], args.label_smoothing,
+                loss_weights[t] * task_loss(out[t], y[:, j], weights[t], args.label_smoothing,
                                             soft if t == "card" else None)
                 for j, t in enumerate(tasks)
             )
@@ -351,7 +376,8 @@ def main() -> int:
         "best": best["metrics"], "final": metrics,
         "hyperparameters": {k: getattr(args, k) for k in
                             ("lr", "head_lr", "weight_decay", "label_smoothing", "head_dropout",
-                             "ema", "soft_borderline", "batch_size", "seed")},
+                             "ema", "soft_borderline", "batch_size", "seed", "balance")},
+        "loss_weights": loss_weights,
         "history": history,
     }
     (out_dir / "metrics.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
