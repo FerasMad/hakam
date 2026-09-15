@@ -213,6 +213,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if not os.getenv("OPENAI_API_KEY"):
+        sys.exit("OPENAI_API_KEY is not set. Copy .env.example to .env and paste the key.")
     os.environ["HAKAM_RETRIEVAL_MODE"] = args.retrieval_mode
     cases = build_cases()
     rows: list[dict] = []

@@ -17,7 +17,6 @@ artifacts/
 # Laws of the Game source PDFs stay local; the curated corpus is committed.
 laws/*.pdf
 laws/raw/*.pdf
-laws/embeddings.npy
 
 # Pretrained detector weights, downloaded on demand
 yolov8n.pt

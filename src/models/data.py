@@ -144,8 +144,8 @@ class FoulDataset(Dataset):
             boxes_path = CACHE_DIR / f"{split}_boxes.json"
             if not boxes_path.exists():
                 raise FileNotFoundError(
-                    f"no zoom boxes at {boxes_path}. Run: "
-                    f"python scripts/zoom_boxes.py --splits {split}"
+                    f"no zoom boxes at {boxes_path}. The zoom geometry was Experiment 4 "
+                    f"(no gain); its box script lives in git history (commit 5fd53dc)."
                 )
             self.boxes = json.loads(boxes_path.read_text())
         self.split = split

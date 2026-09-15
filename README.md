@@ -1,153 +1,103 @@
 # حكم (Hakam)
 
-> Arabic explanations for football refereeing decisions — multi-view foul
-> classification grounded in the Laws of the Game.
+> Arabic explanations for football foul decisions — a video model decides, a
+> language model explains it using the Laws of the Game.
 
-## The problem
+## What it does
 
-VAR decisions are announced without their reasoning. The referee signals, the
-screen shows a check, a card appears — and no explanation follows. The viewer,
-the commentator, and the club are left to guess.
+1. **Watches** a foul from several camera angles and decides: offence? card?
+   It also describes the action (tackle, hands, elbowing, high leg) and body part.
+2. **Writes a contract** — a small JSON with those labels and their confidence.
+3. **Retrieves** the matching articles from the IFAB Laws of the Game.
+4. **Explains** the decision in Arabic, citing the Law, and checks that every claim
+   is in the contract.
 
-The Laws of the Game already contain precise criteria: a challenge is *careless*,
-*reckless*, or made with *excessive force*, and each carries a defined sanction.
-The answer exists in writing. Nobody connects it to the incident in time.
-
-## What this does
-
-Given a foul incident filmed from multiple camera angles, Hakam:
-
-1. Classifies what physically happened — severity, foul type, contact point
-2. Retrieves the matching article from the Laws of the Game
-3. Generates an Arabic explanation of why the decision was what it was
-
-## Pipeline
+When the model is unsure (offence confidence below 60%), it refers the case to a
+human instead of explaining.
 
 ```
-   multi-view clip
-        |
-        v  frame sampling (frames 63-87 @ 17fps)
-        v  frozen video backbone, embeddings cached to disk
-        v  multi-view pooling
-        v  cascade:  offence?  ->  card?  ->  yellow / red?
-        |
-   =====|=====  contract boundary
-        v
-   HakamContract (JSON)  { labels + confidences only }
-        |
-        v  tag + multilingual E5 retrieval over the Laws of the Game
-        v  OpenAI GPT-5 nano + grounded-output guardrails
-        |
-        v
-   Arabic explanation
+multi-view clip
+      │  VideoMAE-base, fine-tuned (all camera views)
+      ▼
+HakamContract (JSON: labels + confidences)   ◄── the language model sees only this
+      │  tag + multilingual-E5 retrieval over 47 Law 12 / Law 5 chunks
+      ▼
+GPT-5 nano, prompt v2 + claim check + safe fallback
+      │
+      ▼
+Arabic explanation (decision · article · reasoning · confidence)
 ```
 
-**Design note.** The language model never sees the video. It receives only the
-JSON contract, so it cannot assert a visual detail the classifier did not
-produce. Grounding is enforced by construction, not by prompting.
+**The language model never sees the video.** It can only state what the contract
+contains, which makes grounding structural rather than a prompt instruction.
 
-Full diagrams: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+## Results (test set)
 
-## Tech stack
-
-### Models
-
-| Role | Model | Notes |
-|---|---|---|
-| CV baseline | **MViT-v2-S** (torchvision) | Reproduces the published SoccerNet-MVFoul result. Pretrained on Kinetics-400 |
-| CV experiment | **VideoMAE** — `MCG-NJU/videomae-base-finetuned-kinetics` | Self-supervised video pretraining, stronger in the small-data regime (3,901 clips) |
-| CV iteration | `MCG-NJU/videomae-small-finetuned-kinetics` | Faster variant for hyperparameter sweeps |
-| LLM | **OpenAI GPT-5 nano** (`gpt-5-nano`) | Lowest-cost OpenAI model used for the grounded Arabic explanation |
-| Embeddings | `intfloat/multilingual-e5-base` | Multilingual semantic retrieval over Arabic and English law text |
-
-The backbone stays **frozen**. Embeddings are computed once and cached to disk; only the
-pooling layer and the cascade heads are trained. On 3,901 samples this usually beats full
-fine-tuning, and it turns each experiment from hours into seconds.
-
-### Infrastructure
-
-| Layer | Tool |
+| Task | Balanced accuracy |
 |---|---|
-| Deep learning | PyTorch |
-| Video decoding | PyAV |
-| Dataset download | `SoccerNet` package |
-| Vector search | NumPy cosine similarity + contract-tag overlap |
-| Metrics | scikit-learn — balanced accuracy, macro-F1, confusion matrix |
-| Prototype UI | Streamlit |
-| Experiment tracking | MLflow |
-| Compute | Colab / Kaggle free tier |
+| Card | **0.64** |
+| Offence | **0.64** |
+| Body part | **0.68** |
+| Action family (4 classes) | **0.54** |
+| Explanation faithfulness (prompt v2) | **1.00**, 0% unsupported claims |
 
-### Grounded language layer
+Details, experiment history and limitations: [`docs/RESULTS.md`](docs/RESULTS.md).
 
-The retrieval model is `intfloat/multilingual-e5-base`, combined with exact overlap on labels
-from `HakamContract`. Its 47 curated bilingual IFAB chunks are small enough for NumPy cosine
-similarity, and their embeddings are cached locally. The generator receives only contract JSON
-and retrieved law text. Prompt v2 validates claims, repairs a bad response, and falls back to a
-safe Arabic draft if the low-cost model still changes a fact or breaks the four-line structure.
-
-Set the API key in the environment, then run the demo:
+## Quick start
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-export OPENAI_API_KEY="..."
-python scripts/demo_llm.py
+python -m venv .venv
+.venv\Scripts\activate            # macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt
+copy .env.example .env            # macOS/Linux: cp .env.example .env
+# open .env and paste your OPENAI_API_KEY
 ```
 
-Run the 24-case, two-prompt evaluation with:
+| Run | Command |
+|---|---|
+| Demo app | `streamlit run app/main.py` |
+| One explanation in the terminal | `python scripts/demo_llm.py` |
+| LLM evaluation (v1 vs v2) | `python scripts/eval_llm.py` |
+| Tests | `python -m pytest -q` |
 
-```bash
-python scripts/eval_llm.py
-```
+Without an API key the app still runs: it shows a template explanation built only
+from the contract and labels it as such.
 
-The generated CSV files are written under `artifacts/llm/` and remain local because `artifacts/`
-is gitignored.
+Real test-set contracts go in `artifacts/contracts/` (shared privately — they are
+derived from the NDA dataset).
+
+## Repository
+
+| Path | Contents |
+|---|---|
+| `app/` | Streamlit demo |
+| `src/contract.py` | The contract between the vision model and the language model |
+| `src/llm/` | Retrieval, prompts, generation, faithfulness check, Arabic lexicon |
+| `src/models/` | Datasets, multi-view multi-task training, metrics |
+| `src/data/` | Dataset loading, label derivation, preprocessing, augmentation |
+| `laws/` | 47 curated bilingual IFAB rule chunks and their prebuilt embeddings |
+| `notebooks/train_colab.ipynb` | Full training run on a Colab A100 |
+| `scripts/` | Frame caching, ensembling, contracts, LLM demo and evaluation |
+| `docs/` | Results, language-layer report, preprocessing report, related work |
+| `tests/` | Unit tests (no API calls, no dataset needed) |
 
 ## Data
 
 The dataset is **not** in this repository and cannot be redistributed.
-
-**SoccerNet-MVFoul** — 3,901 foul incidents from 500 matches, each filmed from
-two or more angles, annotated across 10 referee-perspective properties by a
-professional referee with 300+ official matches.
-
-To obtain it, sign the data agreement at
-<https://github.com/SoccerNet/sn-mvfoul> and place the files under `data/`.
-See [`data/README.md`](data/README.md).
-
-## Structure
-
-| Path | Contents |
-|---|---|
-| `README.md` | this file |
-| `data/` | dataset location (contents gitignored) |
-| `laws/corpus.json` | 47 curated bilingual IFAB rule chunks |
-| `src/llm/` | retrieval, prompts, generation, and faithfulness checks |
-| `scripts/demo_llm.py` | end-to-end mock-contract demo |
-| `scripts/eval_llm.py` | v1/v2 evaluation and manual-audit sample |
-| `docs/llm/REPORT.md` | language-layer design and measured results |
+**SoccerNet-MVFoul**: 3,901 foul incidents from 500 matches, 2–4 camera views each,
+annotated by a professional referee. Access requires signing the agreement at
+<https://github.com/SoccerNet/sn-mvfoul>. See [`data/README.md`](data/README.md).
 
 ## Related work
 
-This project builds on published research and does not claim to outperform it:
+- **VARS** (Held et al., CVPR 2023 Workshop) introduced SoccerNet-MVFoul.
+- **X-VARS** feeds video directly into a multimodal LLM and explains in English.
 
-- **VARS** — Held et al., CVPR 2023 Workshop. Introduced SoccerNet-MVFoul and
-  the multi-view approach. <https://arxiv.org/abs/2304.04617>
-- **X-VARS** — a multimodal LLM producing refereeing explanations in English.
-  <https://arxiv.org/abs/2404.06332>
-
-Hakam differs in architecture and language: explanations are Arabic, retrieval
-is grounded in the Laws of the Game text, and the language model is isolated
-from the video by a structured contract.
-
-## Status
-
-The language half is implemented and evaluated against `mock_contract()`. The CV model can be
-connected through the existing `HakamContract` boundary without exposing video to the LLM.
+Hakam explains in Arabic, grounds every explanation in the Laws of the Game text,
+and isolates the language model from the video. More in
+[`docs/RELATED_WORK.md`](docs/RELATED_WORK.md).
 
 ## Disclaimer
 
-Experimental prototype. Does not make refereeing decisions and does not replace
-a referee. It explains decisions that have already been made, and declares low
-confidence rather than guessing.
+A research prototype built for the Tuwaiq AI bootcamp. It does not make refereeing
+decisions; it explains decisions and declares low confidence rather than guessing.

@@ -2,10 +2,10 @@
 
     streamlit run app/main.py
 
-The language step uses src.llm.generate.explain when it exists (Anas's module).
-Until then, or if the API call fails on stage, a deterministic Arabic template
-built from the contract is shown instead and labelled as such - the demo never
-breaks, and it never invents anything the contract does not contain.
+The language step is src.llm.generate.explain (retrieval + GPT-5 nano + claim
+check). Without an API key, or if the call fails on stage, retrieval still runs
+locally and the grounded Arabic draft is shown instead, labelled as such - the
+demo never breaks, and it never states anything the contract does not contain.
 """
 
 from __future__ import annotations
@@ -20,7 +20,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.config import ABSTAIN_MESSAGE_AR, CONFIDENCE_THRESHOLD
 from src.contract import HakamContract, mock_contract
-from src.llm import lexicon
 
 LABEL_AR = {
     "offence": "مخالفة", "no_offence": "لا توجد مخالفة",
@@ -83,16 +82,28 @@ def explain(c: HakamContract) -> tuple[str, list[dict], str]:
 
         out = llm_explain(c)
         return out.text_ar, out.articles, "LLM + retrieval"
-    except Exception as exc:  # module missing, no API key, network down
-        return template_explanation(c), [], f"template fallback ({type(exc).__name__})"
+    except Exception as exc:  # no API key, network down
+        reason = type(exc).__name__
+    try:
+        # Retrieval runs locally, so the laws and the grounded draft still appear offline.
+        from src.llm.generate import _safe_v2_fallback
+        from src.llm.retrieve import retrieve
+
+        if c.should_abstain():
+            return ABSTAIN_MESSAGE_AR, [], f"offline — abstained ({reason})"
+        articles = retrieve(c)
+        return _safe_v2_fallback(c, articles), articles, f"offline grounded draft, no LLM ({reason})"
+    except Exception as exc:
+        return template_explanation(c), [], f"template fallback ({reason}; {type(exc).__name__})"
 
 
-def faithfulness(text: str, c: HakamContract) -> tuple[list[str], list[str]]:
-    allowed = {lexicon._key(v) for v in c.citable_values()}
-    if c.should_abstain():
-        allowed.add("refer")
-    claimed = lexicon.found_labels(text)
-    return sorted(claimed & allowed), sorted(claimed - allowed)
+def faithfulness(text: str, c: HakamContract, articles: list[dict]) -> tuple[list[str], list[str]]:
+    # The same scorer the LLM evaluation uses: it understands negation ("no card")
+    # and conditional colour wording, which a bare lexicon match does not.
+    from src.llm.faithfulness import score
+
+    result = score(text, c, articles)
+    return sorted(result["supported"]), sorted(result["unsupported"])
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +170,7 @@ with right:
                 st.markdown(f"<div dir='rtl'>{art.get('text_ar', '')}</div>", unsafe_allow_html=True)
 
     st.subheader("5. Faithfulness check")
-    ok, bad = faithfulness(text, contract)
+    ok, bad = faithfulness(text, contract, articles)
     st.write(f"Supported claims: {', '.join(ok) or '—'}")
     if bad:
         st.error(f"Unsupported claims: {', '.join(bad)}")

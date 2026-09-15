@@ -12,6 +12,15 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+# Secrets come from the environment or a local .env file (copy .env.example).
+# Nothing secret is ever written in code.
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(PROJECT_ROOT / ".env")
+except ImportError:
+    pass
+
 DATA_ROOT = PROJECT_ROOT / "data"          # dataset lands here (gitignored)
 FEATURES_CACHE = PROJECT_ROOT / "features_cache"  # backbone embeddings (gitignored)
 LAWS_DIR = PROJECT_ROOT / "laws"           # Laws of the Game text for retrieval

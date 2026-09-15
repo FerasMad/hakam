@@ -22,6 +22,7 @@ from src.llm.lexicon import arabic_forms
 
 CORPUS_PATH = LAWS_DIR / "corpus.json"
 EMBEDDINGS_PATH = LAWS_DIR / "embeddings.npy"
+EMBEDDINGS_META_PATH = LAWS_DIR / "embeddings.json"
 EMBEDDING_MODEL = "intfloat/multilingual-e5-base"
 
 
@@ -180,27 +181,41 @@ def _embedding_model():
     return SentenceTransformer(model_name)
 
 
+def _index_fingerprint(corpus: tuple[dict, ...]) -> dict:
+    import hashlib
+
+    model_name = os.getenv("HAKAM_EMBEDDING_MODEL", EMBEDDING_MODEL)
+    digest = hashlib.sha256("\n".join(_passages(corpus)).encode("utf-8")).hexdigest()
+    return {"model": model_name, "corpus_sha256": digest, "chunks": len(corpus)}
+
+
+def build_index(force: bool = False) -> Path:
+    """Embed every corpus chunk and save the vectors next to the corpus.
+
+    Rebuilt when the corpus text or the embedding model changes - a row-count
+    check alone would silently keep stale vectors after an edit.
+    """
+    corpus = _load_corpus()
+    fingerprint = _index_fingerprint(corpus)
+    if not force and EMBEDDINGS_PATH.exists() and EMBEDDINGS_META_PATH.exists():
+        try:
+            if json.loads(EMBEDDINGS_META_PATH.read_text(encoding="utf-8")) == fingerprint:
+                return EMBEDDINGS_PATH
+        except json.JSONDecodeError:
+            pass
+    embeddings = np.asarray(
+        _embedding_model().encode(_passages(corpus), normalize_embeddings=True, show_progress_bar=False),
+        dtype=np.float32,
+    )
+    EMBEDDINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    np.save(EMBEDDINGS_PATH, embeddings)
+    EMBEDDINGS_META_PATH.write_text(json.dumps(fingerprint, indent=2), encoding="utf-8")
+    return EMBEDDINGS_PATH
+
+
 def _semantic_scores(query: str, corpus: tuple[dict, ...]) -> np.ndarray:
     model = _embedding_model()
-    embeddings: np.ndarray
-    if EMBEDDINGS_PATH.exists():
-        embeddings = np.load(EMBEDDINGS_PATH)
-        if embeddings.ndim != 2 or embeddings.shape[0] != len(corpus):
-            embeddings = np.empty((0, 0), dtype=np.float32)
-    else:
-        embeddings = np.empty((0, 0), dtype=np.float32)
-
-    if embeddings.shape[0] != len(corpus):
-        embeddings = np.asarray(
-            model.encode(
-                _passages(corpus),
-                normalize_embeddings=True,
-                show_progress_bar=False,
-            ),
-            dtype=np.float32,
-        )
-        EMBEDDINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-        np.save(EMBEDDINGS_PATH, embeddings)
+    embeddings = np.load(build_index())
 
     query_embedding = np.asarray(
         model.encode([query], normalize_embeddings=True, show_progress_bar=False)[0],

@@ -14,6 +14,7 @@ The source PDFs belong in `laws/raw/` and are intentionally ignored by Git.
 Download them with:
 
 ```bash
+mkdir -p laws/raw
 curl -fL 'https://downloads.theifab.com/downloads/laws-of-the-game-202627-single-pages?l=en' \
   -o laws/raw/ifab_laws_2026_27_en.pdf
 curl -fL 'https://downloads.theifab.com/downloads/laws-of-the-game-202627-arabic-single-pages?l=en' \
@@ -35,3 +36,15 @@ rendered and visually checked against the extracted text.
 
 The corpus uses concise faithful summaries, not blind copies of page text. This
 keeps each retrieval unit focused and makes the cited rule easier to audit.
+
+## Retrieval index
+
+`embeddings.npy` holds one normalised `intfloat/multilingual-e5-base` vector per chunk;
+`embeddings.json` records the model and a hash of the corpus text. Both are committed, so
+retrieval works out of the box. After editing `corpus.json`, rebuild with:
+
+```bash
+python scripts/build_index.py
+```
+
+The index is also rebuilt automatically on the first query if the hash no longer matches.

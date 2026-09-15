@@ -35,6 +35,9 @@ def main() -> None:
     args = parse_args()
     os.environ["HAKAM_RETRIEVAL_MODE"] = args.retrieval_mode
 
+    if not os.getenv("OPENAI_API_KEY"):
+        sys.exit("OPENAI_API_KEY is not set. Copy .env.example to .env and paste the key.")
+
     # Colour is intentionally absent because that is the realistic CV output.
     contract = mock_contract(colour=None)
     explanation = explain(contract, prompt_version=args.prompt_version)
