@@ -13,13 +13,19 @@ from src.llm.prompts import (
     build_prompt,
     grounded_explanation_draft,
     grounded_lines,
+    render_v3,
+    ruling_sections,
 )
 from src.llm.retrieve import retrieve
 from src.llm.faithfulness import score
 
 
-_NON_ARABIC_SCRIPT = re.compile(r"[A-Za-z\u0590-\u05ff]")
-_REQUIRED_PREFIXES = ("القرار:", "المادة:", "التفسير:", "مستوى الثقة:")
+_NON_ARABIC_SCRIPT = re.compile(r"[A-Za-z֐-׿]")
+_REQUIRED_PREFIXES = {
+    "v2": ("القرار:", "المادة:", "التفسير:", "مستوى الثقة:"),
+    "v3": ("القرار:", "العقوبة الفنية:", "العقوبة الانضباطية:", "المادة:", "لماذا", "مستوى الثقة:"),
+}
+V3_ARTICLES = 5
 
 
 @dataclass
@@ -29,11 +35,13 @@ class Explanation:
     prompt_version: str
     abstained: bool
     model: str
+    sections: dict | None = None
 
 
 def _extract_explanation(text: str) -> str:
+    """The free-text line: «التفسير» in v2, «لماذا ...» in v3."""
     for raw_line in text.splitlines():
-        match = re.match(r"^التفسير\s*:\s*(.*)$", raw_line.strip())
+        match = re.match(r"^(?:التفسير|لماذا[^:]*)\s*:\s*(.*)$", raw_line.strip())
         if match:
             return match.group(1).strip()
     return ""
@@ -67,6 +75,30 @@ def _safe_v2_fallback(contract: HakamContract, articles: list[dict]) -> str:
         f"التفسير: {explanation}\n"
         f"مستوى الثقة: {confidence}"
     )
+
+
+def v3_articles(contract: HakamContract, k: int = V3_ARTICLES) -> list[dict]:
+    """Every article the ruling rests on, topped up with the best retrieved ones to ``k``."""
+    from src.llm.retrieve import _load_corpus
+    from src.llm.ruling import build_ruling
+
+    corpus = {chunk["id"]: dict(chunk) for chunk in _load_corpus()}
+    articles = [corpus[i] for i in build_ruling(contract).article_ids if i in corpus]
+    seen = {a["id"] for a in articles}
+    for chunk in retrieve(contract, k=k):
+        if len(articles) >= k:
+            break
+        if chunk["id"] not in seen:
+            articles.append(chunk)
+            seen.add(chunk["id"])
+    return articles
+
+
+def safe_v3(contract: HakamContract, articles: list[dict] | None = None) -> tuple[str, dict, list[dict]]:
+    """The full ruling with the deterministic «why» line. Needs no API."""
+    articles = v3_articles(contract) if articles is None else articles
+    sections = ruling_sections(contract, articles)
+    return render_v3(sections), sections, articles
 
 
 def _semantic_risk_reasons(text_ar: str, contract: HakamContract) -> list[str]:
@@ -108,7 +140,9 @@ def _semantic_risk_reasons(text_ar: str, contract: HakamContract) -> list[str]:
     return reasons
 
 
-def _repair_reasons(text_ar: str, contract: HakamContract, articles: list[dict]) -> list[str]:
+def _repair_reasons(
+    text_ar: str, contract: HakamContract, articles: list[dict], prompt_version: str = "v2"
+) -> list[str]:
     metrics = score(text_ar, contract, articles)
     reasons = []
     if metrics["unsupported"]:
@@ -117,12 +151,13 @@ def _repair_reasons(text_ar: str, contract: HakamContract, articles: list[dict])
         reasons.append("لا يوجد استشهاد صريح بالقانون المسترجع")
     if not metrics["hedged_low_conf"]:
         reasons.append("حقل منخفض الثقة ذُكر دون عبارة تحفظ")
+    prefixes = _REQUIRED_PREFIXES[prompt_version]
     lines = [line.strip() for line in text_ar.splitlines() if line.strip()]
-    if len(lines) != 4 or any(
-        not line.startswith(prefix) for line, prefix in zip(lines, _REQUIRED_PREFIXES)
+    if len(lines) != len(prefixes) or any(
+        not line.startswith(prefix) for line, prefix in zip(lines, prefixes)
     ):
-        reasons.append("البنية ليست أربعة أسطر مطابقة")
-    elif not lines[2].removeprefix("التفسير:").strip():
+        reasons.append(f"البنية ليست {len(prefixes)} أسطر مطابقة")
+    elif not _extract_explanation(text_ar):
         reasons.append("سطر التفسير فارغ")
     if _NON_ARABIC_SCRIPT.search(text_ar):
         reasons.append("النص يحتوي حروفاً إنجليزية أو عبرية")
@@ -130,11 +165,17 @@ def _repair_reasons(text_ar: str, contract: HakamContract, articles: list[dict])
     return reasons
 
 
-def explain(contract: HakamContract, prompt_version: str = "v2") -> Explanation:
-    """Explain one contract, or abstain before constructing an API client."""
+def explain(contract: HakamContract, prompt_version: str = "v3") -> Explanation:
+    """Explain one contract, or abstain before constructing an API client.
 
-    if prompt_version not in {"v1", "v2"}:
-        raise ValueError("prompt_version must be 'v1' or 'v2'")
+    v3 (default) is the full ruling shown after the clip: decision, restart,
+    disciplinary sanction, the quoted Law, why it is (or is not) a violation, and
+    confidence. Only the «why» line is written by the model; the rest is rendered
+    from the contract and Law 12, so the sanction can never be invented.
+    """
+
+    if prompt_version not in {"v1", "v2", "v3"}:
+        raise ValueError("prompt_version must be 'v1', 'v2' or 'v3'")
     if contract.should_abstain():
         return Explanation(
             text_ar=ABSTAIN_MESSAGE_AR,
@@ -144,7 +185,7 @@ def explain(contract: HakamContract, prompt_version: str = "v2") -> Explanation:
             model=LLM_MODEL,
         )
 
-    articles = retrieve(contract)
+    articles = v3_articles(contract) if prompt_version == "v3" else retrieve(contract)
     instructions, user_message = build_prompt(contract, articles, prompt_version)
 
     # Imported only after the abstention gate, which makes it impossible for a
@@ -153,6 +194,7 @@ def explain(contract: HakamContract, prompt_version: str = "v2") -> Explanation:
 
     client = OpenAI()
     text_ar = ""
+    sections = None
     request_input = user_message
     reasons: list[str] = []
     for attempt in range(3):
@@ -167,11 +209,16 @@ def explain(contract: HakamContract, prompt_version: str = "v2") -> Explanation:
         raw_text = (response.output_text or "").strip()
         if not raw_text:
             raise RuntimeError("OpenAI returned an empty explanation")
-        if prompt_version != "v2":
+        if prompt_version == "v1":
             text_ar = raw_text
             break
-        text_ar = _enforce_v2_structure(raw_text, contract, articles)
-        reasons = _repair_reasons(text_ar, contract, articles)
+        if prompt_version == "v3":
+            why = _extract_explanation(raw_text) or raw_text.splitlines()[0].split(":", 1)[-1]
+            sections = ruling_sections(contract, articles, why)
+            text_ar = render_v3(sections)
+        else:
+            text_ar = _enforce_v2_structure(raw_text, contract, articles)
+        reasons = _repair_reasons(text_ar, contract, articles, prompt_version)
         if not reasons:
             break
         if attempt < 2:
@@ -181,15 +228,18 @@ def explain(contract: HakamContract, prompt_version: str = "v2") -> Explanation:
                 + text_ar
                 + "\n\nأسباب الرفض:\n- "
                 + "\n- ".join(reasons)
-                + "\nأعد كتابة الأسطر الأربعة من الصفر، وتجنب الكلمات التي سببت "
+                + "\nأعد الكتابة من الصفر، وتجنب الكلمات التي سببت "
                 "ادعاءات غير مدعومة. لا تضف أي معلومة جديدة."
             )
-    if prompt_version == "v2" and reasons:
+    if reasons and prompt_version == "v2":
         text_ar = _safe_v2_fallback(contract, articles)
+    elif reasons and prompt_version == "v3":
+        text_ar, sections, articles = safe_v3(contract, articles)
     return Explanation(
         text_ar=text_ar,
         articles=articles,
         prompt_version=prompt_version,
         abstained=False,
         model=LLM_MODEL,
+        sections=sections,
     )

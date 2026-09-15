@@ -20,8 +20,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src import config
-from src.config import CONFIDENCE_THRESHOLD
-from src.contract import HakamContract, Prediction
+from src.contract import Prediction
+from src.inference.contract_builder import assemble
 
 KEYS = config.PROJECT_ROOT / "frame_cache" / "test_keys_mv.json"
 
@@ -44,21 +44,15 @@ def main() -> int:
     index = []
     for r in df.to_dict("records"):
         offence = Prediction(r["offence_pred"], float(r["offence_confidence"]))
-        card = None
-        if offence.label == "offence":
-            card = Prediction(r["card_pred"], float(r["card_confidence"]))
+        card = Prediction(r["card_pred"], float(r["card_confidence"])) if "card_pred" in r else None
         attributes = {
             name: Prediction(r[f"{name}_pred"], float(r[f"{name}_confidence"]))
             for name in ("action_class", "body_part") if f"{name}_pred" in r
         }
-        # The action family is description, not decision: below the threshold it is
-        # left out entirely rather than handed to the LLM as a hedged guess.
-        if "action_class" in attributes and not attributes["action_class"].is_confident(CONFIDENCE_THRESHOLD):
-            del attributes["action_class"]
-        contract = HakamContract(
-            action_id=r["action_id"], offence=offence, card=card, attributes=attributes,
-            model_version=model_version, num_views=views.get(r["action_id"], 0),
-        )
+        # Same rules as live inference: no card without an offence, action left out below 0.60.
+        contract = assemble(r["action_id"], offence, card, attributes,
+                            model_version, views.get(r["action_id"], 0))
+        card = contract.card
         (out / f"{r['action_id']}.json").write_text(contract.to_json(), encoding="utf-8")
         index.append({
             "action_id": r["action_id"], "abstain": contract.should_abstain(),

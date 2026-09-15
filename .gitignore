@@ -26,3 +26,9 @@ frame_cache/
 
 # Local PDF inspection outputs
 tmp/
+
+# Model weights (see weights/README.md) and the built frontend
+weights/*
+!weights/README.md
+web/node_modules/
+web/dist/

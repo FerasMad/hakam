@@ -77,6 +77,30 @@ supported by the contract, supported by a retrieved law, or wrong. The final aud
 no added visual fact, sanction, colour, or unhedged low-confidence value remained. The detailed
 rows are in the local `artifacts/llm/manual_audit.csv`.
 
+## Prompt v3 — the full ruling after the clip (15 September 2026)
+
+v3 is now the default. It explains the whole ruling in six lines:
+
+```
+القرار: ...
+العقوبة الفنية: ...          restart: free kick, indirect free kick, penalty kick
+العقوبة الانضباطية: ...      disciplinary sanction: none, caution, sending-off
+المادة: القانون 12 — ...: «quoted Law text»
+لماذا تُعد مخالفة: ...        why it is (or is not) a violation
+مستوى الثقة: ...
+```
+
+Only the «why» line is written by the model. The restart and the sanction come from
+`src/llm/ruling.py`, a table of Law 12 rules keyed on the contract, each tied to the
+corpus chunks it rests on, and those chunks are always among the cited articles.
+When the contract lacks a fact the Law depends on — where the foul happened (penalty
+area), whether a raised foot made contact, the card colour — the rule is stated
+conditionally rather than guessed. The same claim check, repair loop and safe
+fallback as v2 apply; the deterministic ruling passes the faithfulness check with
+no unsupported claims on every contract type in `tests/llm/test_ruling.py`.
+`scripts/eval_llm.py` now compares v1, v2 and v3; the v3 figures need a rerun with the
+API key.
+
 ## Abstention and uncertainty
 
 When offence confidence is below 0.60, `explain()` returns the fixed Arabic human-review message

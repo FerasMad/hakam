@@ -52,9 +52,17 @@ class MultiTaskVideoMAE(nn.Module):
     """VideoMAE encoder, the checkpoint's own pooling norm, one linear head per task."""
 
     def __init__(self, backbone_key: str, tasks: list[str], freeze_blocks: int,
-                 dropout: float):
+                 dropout: float, pretrained: bool = True):
         super().__init__()
-        base = build_model(backbone_key, 2, freeze_blocks, 0.0)
+        if pretrained:
+            base = build_model(backbone_key, 2, freeze_blocks, 0.0)
+        else:
+            # Inference: every weight comes from our own checkpoint, so only the
+            # architecture is needed - no 350 MB pretrained download.
+            from transformers import VideoMAEConfig, VideoMAEForVideoClassification
+
+            base = VideoMAEForVideoClassification(
+                VideoMAEConfig.from_pretrained(config.BACKBONES[backbone_key]["name"]))
         self.videomae = base.videomae
         self.fc_norm = base.fc_norm
         dim = config.BACKBONES[backbone_key]["dim"]

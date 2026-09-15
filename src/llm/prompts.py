@@ -63,6 +63,24 @@ PROMPT_V2 = """أنت مساعد عربي يشرح قرارات التحكيم �
 """
 
 
+PROMPT_V3 = """أنت مساعد عربي يشرح قرارات التحكيم وفق قوانين IFAB بعد عرض اللقطة.
+
+سيعرض النظام بنفسه أسطر القرار والعقوبة الفنية والعقوبة الانضباطية والمادة ومستوى الثقة.
+مهمتك كتابة سطر واحد فقط يشرح لماذا تُعد الواقعة مخالفة (أو لماذا لا تُعد).
+
+قواعد ملزمة:
+1. استخدم فقط الحقائق الموجودة في JSON الخاص بالواقعة والنصوص القانونية المرفقة.
+2. لا تصف أي تفصيل بصري غير موجود كحقل في JSON: لا سرعة ولا قفز ولا مسافة ولا دقيقة
+   ولا أسماء لاعبين ولا اتجاه حركة ولا مكان الواقعة ولا منطقة الجزاء.
+3. كل حقل وارد في low_confidence_fields يُذكر بعد «على الأرجح» في الجملة نفسها أو يُحذف.
+4. لا تذكر لون بطاقة، ولا ركلة حرة أو ركلة جزاء؛ هذه في أسطر أخرى.
+5. اربط تصنيف الفعل وموضعه بمعيار القانون 12 كما في المسودة، في جملتين أو ثلاث.
+6. لا تنسب للواقعة تهوراً أو قوة مفرطة إلا كما تقول المسودة حرفياً.
+7. ستجد مسودة آمنة. حسّن أسلوبها فقط، ولا تحذف منها صياغة نوع الفعل، ولا تضف حقيقة جديدة.
+8. أعد النص العربي فقط، سطراً واحداً يبدأ بالعنوان المعطى ثم نقطتين، دون Markdown.
+"""
+
+
 _ARTICLE_FIELDS = ("id", "law", "section", "title_ar", "text_ar", "text_en")
 
 _DECISION_AR = {
@@ -199,6 +217,51 @@ def _fixed_lines(contract: HakamContract, articles: list[dict]) -> str:
     )
 
 
+V3_HEADINGS = ("القرار", "العقوبة الفنية", "العقوبة الانضباطية", "المادة", None, "مستوى الثقة")
+
+
+def article_line(contract: HakamContract, articles: list[dict]) -> str:
+    """The Law line: the rule the ruling rests on, with its Arabic text quoted."""
+    from src.llm.ruling import build_ruling
+
+    wanted = build_ruling(contract).article_ids
+    by_id = {a.get("id"): a for a in articles}
+    chosen = next((by_id[i] for i in wanted if i in by_id), articles[0] if articles else {})
+    raw_law = str(chosen.get("law", "Law 12"))
+    law = "المسرد" if raw_law.lower() == "glossary" else raw_law.replace("Law ", "القانون ")
+    title = chosen.get("title_ar") or "المادة المسترجعة"
+    quote = str(chosen.get("text_ar", "")).strip()
+    return f"{law} — {title}: «{quote}»" if quote else f"{law} — {title}"
+
+
+def ruling_sections(contract: HakamContract, articles: list[dict], why: str | None = None) -> dict:
+    """The six parts of the v3 explanation, keyed for the frontend."""
+    from src.llm.ruling import build_ruling
+
+    ruling = build_ruling(contract)
+    decision, _, confidence = grounded_lines(contract, articles)
+    return {
+        "decision": decision,
+        "restart": ruling.restart,
+        "disciplinary": ruling.disciplinary,
+        "law": article_line(contract, articles),
+        "why_title": ruling.why_title,
+        "why": (why or ruling.why).strip(),
+        "confidence": confidence,
+    }
+
+
+def render_v3(sections: dict) -> str:
+    return (
+        f"القرار: {sections['decision']}\n"
+        f"العقوبة الفنية: {sections['restart']}\n"
+        f"العقوبة الانضباطية: {sections['disciplinary']}\n"
+        f"المادة: {sections['law']}\n"
+        f"{sections['why_title']}: {sections['why']}\n"
+        f"مستوى الثقة: {sections['confidence']}"
+    )
+
+
 def build_prompt(
     contract: HakamContract,
     articles: list[dict],
@@ -206,9 +269,9 @@ def build_prompt(
 ) -> tuple[str, str]:
     """Return ``(system_instructions, user_message)`` for one generation."""
 
-    prompts = {"v1": PROMPT_V1, "v2": PROMPT_V2}
+    prompts = {"v1": PROMPT_V1, "v2": PROMPT_V2, "v3": PROMPT_V3}
     if prompt_version not in prompts:
-        raise ValueError("prompt_version must be 'v1' or 'v2'")
+        raise ValueError("prompt_version must be 'v1', 'v2' or 'v3'")
     clean_articles = [
         {key: article.get(key) for key in _ARTICLE_FIELDS}
         for article in articles
@@ -226,5 +289,13 @@ def build_prompt(
             + "\n\nSAFE ARABIC EXPLANATION DRAFT — DO NOT CHANGE ITS FACTS:\n"
             + "التفسير: "
             + grounded_explanation_draft(contract, articles)
+        )
+    if prompt_version == "v3":
+        sections = ruling_sections(contract, articles)
+        user_message += (
+            "\n\nLINES THE SYSTEM WILL RENDER (context only, do not repeat them):\n"
+            + render_v3({**sections, "why": "…"})
+            + "\n\nSAFE DRAFT OF YOUR LINE — IMPROVE STYLE ONLY, KEEP EVERY FACT:\n"
+            + f"{sections['why_title']}: {sections['why']}"
         )
     return prompts[prompt_version], user_message

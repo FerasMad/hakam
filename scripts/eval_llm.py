@@ -151,6 +151,9 @@ def build_cases() -> list[HakamContract]:
     return cases
 
 
+VERSIONS = ("v1", "v2", "v3")
+
+
 def _write_csv(path: Path, rows: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as stream:
@@ -161,7 +164,7 @@ def _write_csv(path: Path, rows: list[dict]) -> None:
 
 def _summaries(rows: list[dict]) -> dict[str, dict[str, float]]:
     summaries = {}
-    for version in ("v1", "v2"):
+    for version in VERSIONS:
         selected = [row for row in rows if row["prompt_version"] == version]
         low_conf = [row for row in selected if row["low_confidence_case"]]
         summaries[version] = {
@@ -188,12 +191,12 @@ def _print_table(summaries: dict[str, dict[str, float]]) -> None:
         ("% correctly abstained", "correct_abstention_rate", True),
         ("% hedging low-confidence fields", "low_conf_hedge_rate", True),
     )
-    print("| Metric | v1 | v2 |")
-    print("|---|---:|---:|")
+    print("| Metric | " + " | ".join(VERSIONS) + " |")
+    print("|---|" + "---:|" * len(VERSIONS))
     for label, key, as_percent in labels:
-        values = [summaries[version][key] for version in ("v1", "v2")]
+        values = [summaries[version][key] for version in VERSIONS]
         rendered = [f"{value * 100:.1f}%" if as_percent else f"{value:.3f}" for value in values]
-        print(f"| {label} | {rendered[0]} | {rendered[1]} |")
+        print(f"| {label} | " + " | ".join(rendered) + " |")
 
 
 def parse_args() -> argparse.Namespace:
@@ -219,7 +222,7 @@ def main() -> None:
     cases = build_cases()
     rows: list[dict] = []
 
-    for version in ("v1", "v2"):
+    for version in VERSIONS:
         for index, contract in enumerate(cases, start=1):
             print(f"[{version}] {index:02d}/{len(cases)} {contract.action_id}", flush=True)
             explanation = explain(contract, prompt_version=version)
@@ -263,7 +266,7 @@ def main() -> None:
     }
     audit_rows = []
     for row in rows:
-        if row["prompt_version"] == "v2" and row["case_id"] in preferred_ids:
+        if row["prompt_version"] == "v3" and row["case_id"] in preferred_ids:
             audit_rows.append(
                 {
                     "case_id": row["case_id"],

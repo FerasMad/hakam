@@ -9,8 +9,9 @@
    It also describes the action (tackle, hands, elbowing, high leg) and body part.
 2. **Writes a contract** — a small JSON with those labels and their confidence.
 3. **Retrieves** the matching articles from the IFAB Laws of the Game.
-4. **Explains** the decision in Arabic, citing the Law, and checks that every claim
-   is in the contract.
+4. **Explains** the ruling in Arabic: the decision, the restart (free kick / penalty),
+   the disciplinary sanction, the Law it comes from, and why it is a violation — and
+   checks that every claim is in the contract.
 
 When the model is unsure (offence confidence below 60%), it refers the case to a
 human instead of explaining.
@@ -22,10 +23,10 @@ multi-view clip
 HakamContract (JSON: labels + confidences)   ◄── the language model sees only this
       │  tag + multilingual-E5 retrieval over 47 Law 12 / Law 5 chunks
       ▼
-GPT-5 nano, prompt v2 + claim check + safe fallback
+Law 12 rules (restart, sanction) + GPT-5 nano for the reasoning, claim check, safe fallback
       │
       ▼
-Arabic explanation (decision · article · reasoning · confidence)
+Arabic ruling (decision · restart · sanction · Law · why · confidence)
 ```
 
 **The language model never sees the video.** It can only state what the contract
@@ -53,15 +54,18 @@ copy .env.example .env            # macOS/Linux: cp .env.example .env
 # open .env and paste your OPENAI_API_KEY
 ```
 
+Put the model weights in `weights/` (see [`weights/README.md`](weights/README.md)).
+
 | Run | Command |
 |---|---|
-| Demo app | `streamlit run app/main.py` |
+| API server | `uvicorn server.app:app --reload` → <http://localhost:8000/docs> |
+| Predict from clips (terminal) | `python -m src.inference.predict clip_0.mp4 clip_1.mp4` |
 | One explanation in the terminal | `python scripts/demo_llm.py` |
-| LLM evaluation (v1 vs v2) | `python scripts/eval_llm.py` |
+| LLM evaluation (v1 vs v2 vs v3) | `python scripts/eval_llm.py` |
 | Tests | `python -m pytest -q` |
 
-Without an API key the app still runs: it shows a template explanation built only
-from the contract and labels it as such.
+Without an API key the server still answers: `/api/explain` returns the full ruling
+built from the contract and Law 12, labelled `offline`.
 
 Real test-set contracts go in `artifacts/contracts/` (shared privately — they are
 derived from the NDA dataset).
@@ -70,7 +74,8 @@ derived from the NDA dataset).
 
 | Path | Contents |
 |---|---|
-| `app/` | Streamlit demo |
+| `server/` | FastAPI backend: predict from clips, explain, test-set browser |
+| `src/inference/` | Live inference: video clips → contract |
 | `src/contract.py` | The contract between the vision model and the language model |
 | `src/llm/` | Retrieval, prompts, generation, faithfulness check, Arabic lexicon |
 | `src/models/` | Datasets, multi-view multi-task training, metrics |

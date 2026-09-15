@@ -39,14 +39,32 @@ def _sentences(text: str) -> list[str]:
     return [part.strip() for part in re.split(r"[\n.!؟؛]+", text) if part.strip()]
 
 
-def _incident_claim_text(text: str) -> str:
-    """Exclude citation and confidence metadata from incident-label claims."""
+# Line headings of the v2/v3 structure. They name a section, they claim nothing
+# about the incident ("العقوبة" is a card form, "مخالفة" an offence form).
+_SECTION_HEADINGS = (
+    "القرار:",
+    "التفسير:",
+    "العقوبة الفنية:",
+    "العقوبة الانضباطية:",
+    "لماذا تُعد مخالفة:",
+    "لماذا لا تُعد مخالفة:",
+)
 
-    return "\n".join(
-        line
-        for line in text.splitlines()
-        if not line.strip().startswith(("المادة:", "مستوى الثقة:"))
-    )
+
+def _incident_claim_text(text: str) -> str:
+    """Exclude citation and confidence metadata, and section headings, from claims."""
+
+    lines = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(("المادة:", "مستوى الثقة:")):
+            continue
+        for heading in _SECTION_HEADINGS:
+            if stripped.startswith(heading):
+                stripped = stripped[len(heading):].strip()
+                break
+        lines.append(stripped)
+    return "\n".join(lines)
 
 
 def _conditional_colours(text: str) -> set[str]:
