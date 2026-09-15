@@ -21,7 +21,7 @@ from src.llm.generate import explain
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--prompt-version", choices=("v1", "v2"), default="v2")
+    parser.add_argument("--prompt-version", choices=("v1", "v2", "v3"), default="v3")
     parser.add_argument(
         "--retrieval-mode",
         choices=("hybrid", "tags"),
