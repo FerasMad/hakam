@@ -20,7 +20,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from server import services  # noqa: E402
 
-app = FastAPI(title="Hakam API", version="1.0")
+# On a deployment, pull the weights (and optional test-set data) from private
+# Hugging Face repos before the first request. Locally, with the env vars unset,
+# nothing happens.
+if services.os.getenv("HAKAM_WEIGHTS_REPO") or services.os.getenv("HAKAM_CASES_REPO"):
+    from scripts.fetch_assets import fetch  # noqa: E402
+
+    for line in fetch():
+        print(f"[assets] {line}", flush=True)
+
+app = FastAPI(title="Hakam API", version=services.VERSION)
+
+if services.os.getenv("HAKAM_WARM_UP", "1") == "1" and "pytest" not in sys.modules:
+    import threading
+
+    threading.Thread(target=services.warm_up, daemon=True).start()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # Vite dev server

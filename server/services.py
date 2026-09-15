@@ -22,6 +22,7 @@ CONTRACTS_DIR = config.ARTIFACTS / "contracts"
 CLIPS_DIR = config.DATA_ROOT / "mvfouls" / "Test"
 DEMO_CASES = ROOT / "server" / "demo_cases.json"
 
+VERSION = "1.0"
 MAX_FILES = 4
 MAX_MB = 50
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v"}
@@ -54,6 +55,24 @@ def get_predictor():
     return _predictor
 
 
+def warm_up() -> None:
+    """Load the vision model and the embedding model before the first user waits for them.
+
+    Cold, the first explanation takes ~10 s (embedding model load); warm, well under 1 s.
+    """
+    try:
+        get_predictor()
+    except RuntimeError:
+        pass
+    try:
+        from src.contract import mock_contract
+        from src.llm.retrieve import retrieve
+
+        retrieve(mock_contract(colour=None))
+    except Exception:  # retrieval falls back to tags on its own; never block startup
+        pass
+
+
 def health() -> dict:
     from src.llm.retrieve import EMBEDDINGS_PATH
 
@@ -62,11 +81,13 @@ def health() -> dict:
     except RuntimeError:
         device = None
     return {
+        "version": VERSION,
         "model_loaded": _predictor is not None,
         "model_error": _predictor_error,
         "device": device,
         "llm_key_present": bool(os.getenv("OPENAI_API_KEY")),
         "index_built": EMBEDDINGS_PATH.exists(),
+        "cases_enabled": (CONTRACTS_DIR / "test_index.json").exists(),
         "test_cases": len(list_cases()),
     }
 

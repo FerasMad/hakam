@@ -70,6 +70,21 @@ built from the contract and Law 12, labelled `offline`.
 Real test-set contracts go in `artifacts/contracts/` (shared privately — they are
 derived from the NDA dataset).
 
+## Deploy
+
+The app ships as one Docker image (`Dockerfile`, port 7860): FastAPI serves the API and
+the built React frontend. Weights and optional test-set data are pulled at start from
+private Hugging Face repos.
+
+| Step | Command |
+|---|---|
+| Push weights (and optional test-set data) once | `python scripts/upload_assets.py --weights-repo USER/hakam-weights [--cases-repo USER/hakam-cases]` |
+| Deploy to a private Hugging Face Docker Space | `python scripts/push_space.py --space USER/hakam` |
+| Check any running deployment | `python scripts/smoke_test.py URL [--clip a.mp4 --clip b.mp4]` |
+
+Server environment: `HAKAM_WEIGHTS_REPO`, `HF_TOKEN`, optional `HAKAM_CASES_REPO`, and
+`OPENAI_API_KEY` for live explanations.
+
 ## Repository
 
 | Path | Contents |
