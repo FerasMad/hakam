@@ -44,7 +44,7 @@ Label vocabulary the real contracts use:
 | `offence` | `offence`, `no_offence` |
 | `card` | `card`, `no_card`, or `null` when no offence |
 | `card_colour` | always `null` (colour is not predicted — never display a colour as a decision) |
-| `action_class` | `tackle`, `hands`, `elbowing`, `high leg` — **absent** when the model was unsure |
+| `action_class` | `tackle`, `hands`, `elbowing`, `high leg` — **absent** when the model was unsure. The older `contracts/` folder (round 4) still uses the fine labels (`standing tackling`, `holding`, ...); `LABEL_AR` covers both, so handle either |
 | `body_part` | `upper_body`, `under_body` |
 
 ---
