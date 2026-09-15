@@ -58,38 +58,22 @@ Put the model weights in `weights/` (see [`weights/README.md`](weights/README.md
 
 | Run | Command |
 |---|---|
-| API server | `uvicorn server.app:app --reload` → <http://localhost:8000/docs> |
-| Predict from clips (terminal) | `python -m src.inference.predict clip_0.mp4 clip_1.mp4` |
+| Test the model on your own clip | `python scripts/try_video.py my_foul.mp4` |
+| Contract only (JSON) | `python -m src.inference.predict clip_0.mp4 clip_1.mp4` |
 | One explanation in the terminal | `python scripts/demo_llm.py` |
 | LLM evaluation (v1 vs v2 vs v3) | `python scripts/eval_llm.py` |
 | Tests | `python -m pytest -q` |
 
-Without an API key the server still answers: `/api/explain` returns the full ruling
-built from the contract and Law 12, labelled `offline`.
+Without an API key the ruling is still produced, built from the contract and the Law 12
+rules, and labelled offline.
 
 Real test-set contracts go in `artifacts/contracts/` (shared privately — they are
 derived from the NDA dataset).
-
-## Deploy
-
-The app ships as one Docker image (`Dockerfile`, port 7860): FastAPI serves the API and
-the built React frontend. Weights and optional test-set data are pulled at start from
-private Hugging Face repos.
-
-| Step | Command |
-|---|---|
-| Push weights (and optional test-set data) once | `python scripts/upload_assets.py --weights-repo USER/hakam-weights [--cases-repo USER/hakam-cases]` |
-| Deploy to a private Hugging Face Docker Space | `python scripts/push_space.py --space USER/hakam` |
-| Check any running deployment | `python scripts/smoke_test.py URL [--clip a.mp4 --clip b.mp4]` |
-
-Server environment: `HAKAM_WEIGHTS_REPO`, `HF_TOKEN`, optional `HAKAM_CASES_REPO`, and
-`OPENAI_API_KEY` for live explanations.
 
 ## Repository
 
 | Path | Contents |
 |---|---|
-| `server/` | FastAPI backend: predict from clips, explain, test-set browser |
 | `src/inference/` | Live inference: video clips → contract |
 | `src/contract.py` | The contract between the vision model and the language model |
 | `src/llm/` | Retrieval, prompts, generation, faithfulness check, Arabic lexicon |
