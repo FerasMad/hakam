@@ -15,7 +15,7 @@ from pathlib import Path
 
 import numpy as np
 
-from src.config import LAWS_DIR, RETRIEVAL_TOP_K
+from src.config import ACTION_FAMILIES, LAWS_DIR, RETRIEVAL_TOP_K
 from src.contract import HakamContract
 from src.llm.lexicon import arabic_forms
 
@@ -67,6 +67,10 @@ def _tag_scores(contract: HakamContract, corpus: tuple[dict, ...]) -> np.ndarray
     }
     action = contract.attributes.get("action_class")
     contact = contract.attributes.get("contact")
+    # The model emits a family ("hands"); corpus tags name its members ("holding").
+    action_tags: set[str] = set()
+    if action is not None:
+        action_tags = {_key(action.label)} | {_key(m) for m in ACTION_FAMILIES.get(action.label, [])}
     scores = []
     for chunk in corpus:
         tags = {_key(tag) for tag in chunk.get("tags", [])}
@@ -83,13 +87,13 @@ def _tag_scores(contract: HakamContract, corpus: tuple[dict, ...]) -> np.ndarray
             score += 6.0
         if "no offence" not in values and "offence" in tags:
             score += 1.0
-        if action is not None and _key(action.label) in tags:
+        if action is not None and tags & action_tags:
             score += 3.0
         if (
             action is not None
             and _key(action.label) != "dont know"
             and tags & action_labels
-            and _key(action.label) not in tags
+            and not tags & action_tags
         ):
             score -= 4.0
         if action is not None and _key(action.label) == "dont know":

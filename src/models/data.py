@@ -197,11 +197,40 @@ class FoulDataset(Dataset):
 TASKS = {
     "offence": ["no_offence", "offence"],
     "card": ["no_card", "card"],
-    "action_class": ["standing tackling", "tackling", "challenge", "holding",
-                     "elbowing", "high leg", "pushing", "dive"],
+    # Law 12 families (config.ACTION_FAMILIES). Dive and "dont know" are ignored
+    # by this head only; those actions keep their other labels.
+    "action_class": list(config.ACTION_FAMILIES),
     "body_part": ["under_body", "upper_body"],
 }
 IGNORE = -100
+
+ACTION_FAMILY = {member: family for family, members in config.ACTION_FAMILIES.items() for member in members}
+
+# Class order used by runs trained before the merge, so their saved scores still load.
+LEGACY_CLASSES = {
+    "action_class": ["standing tackling", "tackling", "challenge", "holding",
+                     "elbowing", "high leg", "pushing", "dive"],
+}
+
+
+def to_current_classes(task: str, probs: np.ndarray, labels: np.ndarray):
+    """Map scores saved with the legacy 8-class list onto the families.
+
+    Member probabilities are summed into their family; mass on classes with no
+    family (dive) is dropped and the rest renormalised. Labels without a family
+    become IGNORE.
+    """
+    legacy = LEGACY_CLASSES.get(task)
+    if legacy is None or probs.shape[1] != len(legacy):
+        return probs, labels
+    current = TASKS[task]
+    family_of = {i: current.index(ACTION_FAMILY[c]) for i, c in enumerate(legacy) if c in ACTION_FAMILY}
+    p = np.zeros((len(probs), len(current)), dtype=np.float64)
+    for i, f in family_of.items():
+        p[:, f] += probs[:, i]
+    p = p / np.clip(p.sum(1, keepdims=True), 1e-12, None)
+    y = np.array([family_of.get(int(v), IGNORE) for v in labels], dtype=np.int64)
+    return p, y
 
 
 def _task_label(rec, task: str) -> int:
@@ -210,7 +239,7 @@ def _task_label(rec, task: str) -> int:
     if task in ("offence", "card"):
         value = rec[f"target_{task}"] if bool(rec[f"supervise_{task}"]) else None
     elif task == "action_class":
-        value = str(rec.get("Action class", "")).strip().lower()
+        value = ACTION_FAMILY.get(str(rec.get("Action class", "")).strip().lower())
     else:
         value = str(rec.get("Bodypart", "")).strip().lower().replace(" ", "_")
     return classes.index(value) if value in classes else IGNORE

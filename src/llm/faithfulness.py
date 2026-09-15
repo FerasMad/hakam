@@ -79,7 +79,7 @@ def _false_positive_labels(text: str, contract: HakamContract) -> set[str]:
         # «النص المرفق», and is not enough on its own to claim elbowing.
         false.add("elbowing")
 
-    if action_key not in {"tackling", "standing tackling", "challenge"}:
+    if action_key not in {"tackle", "tackling", "standing tackling", "challenge"}:
         specific_tackling = {
             lexicon.normalise(form)
             for form in lexicon.arabic_forms("tackling")
@@ -194,7 +194,10 @@ def score(explanation_ar: str, contract: HakamContract, articles: list[dict]) ->
     for label in claimed:
         if label in allowed:
             supported.add(label)
-        elif label in {"tackling", "challenge"} and allowed & {"tackling", "challenge"}:
+        elif label in {"tackling", "challenge"} and allowed & {"tackling", "challenge", "tackle"}:
+            # The generic forms «تدخل» / «التحام» are how Arabic names a tackle, so
+            # they are supported by the tackle family. Naming a specific member of
+            # a family (holding for "hands") is not: the model did not claim it.
             supported.add(label)
     unsupported = claimed - supported
 

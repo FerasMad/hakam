@@ -26,6 +26,7 @@ LABEL_AR = {
     "offence": "مخالفة", "no_offence": "لا توجد مخالفة",
     "card": "تستوجب بطاقة", "no_card": "لا تستوجب بطاقة",
     "yellow": "إنذار", "red": "طرد",
+    "tackle": "تدخل على المنافس", "hands": "مخالفة باليدين",
     "tackling": "تدخل", "standing tackling": "تدخل من وضع الوقوف", "high leg": "رفع القدم عالياً",
     "holding": "إعاقة", "pushing": "دفع", "elbowing": "ضرب بالمرفق", "challenge": "التحام",
     "dive": "سقوط تمثيلي", "dont know": "غير محدد",

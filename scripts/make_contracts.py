@@ -20,6 +20,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src import config
+from src.config import CONFIDENCE_THRESHOLD
 from src.contract import HakamContract, Prediction
 
 KEYS = config.PROJECT_ROOT / "frame_cache" / "test_keys_mv.json"
@@ -50,6 +51,10 @@ def main() -> int:
             name: Prediction(r[f"{name}_pred"], float(r[f"{name}_confidence"]))
             for name in ("action_class", "body_part") if f"{name}_pred" in r
         }
+        # The action family is description, not decision: below the threshold it is
+        # left out entirely rather than handed to the LLM as a hedged guess.
+        if "action_class" in attributes and not attributes["action_class"].is_confident(CONFIDENCE_THRESHOLD):
+            del attributes["action_class"]
         contract = HakamContract(
             action_id=r["action_id"], offence=offence, card=card, attributes=attributes,
             model_version=model_version, num_views=views.get(r["action_id"], 0),

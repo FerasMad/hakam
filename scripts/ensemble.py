@@ -20,7 +20,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.models.data import IGNORE, TASKS
+from src.models.data import IGNORE, TASKS, to_current_classes
 from src.models.train import RUNS_DIR
 from src.models.train_mt import best_threshold, task_metrics
 
@@ -30,47 +30,27 @@ def load_mean(runs: list[str], split: str, task_runs: dict[str, list[str]] | Non
     task_runs = task_runs or {}
     names = list(dict.fromkeys(runs + [r for rs in task_runs.values() for r in rs]))
     loaded = {r: dict(np.load(RUNS_DIR / r / f"{split}_scores.npz", allow_pickle=True)) for r in names}
+    # Runs trained under different class lists can keep slightly different valid
+    # rows (an action whose only label was a removed class). Score the shared ones.
     ids = loaded[names[0]]["action_ids"]
+    for s in loaded.values():
+        ids = ids[np.isin(ids, s["action_ids"])]
     for r, s in loaded.items():
-        if not np.array_equal(s["action_ids"], ids):
-            raise ValueError(f"{r}: {split} actions differ from {names[0]}")
+        keep = np.isin(s["action_ids"], ids)
+        if not keep.all():
+            print(f"  {r}: {int((~keep).sum())} {split} actions not in every run, dropped")
+            loaded[r] = {k: (v[keep] if isinstance(v, np.ndarray) and len(v) == len(keep) else v)
+                         for k, v in s.items()}
     out = {"action_ids": ids, "matches": loaded[names[0]]["matches"]}
     tasks = {k[len("prob_"):] for s in loaded.values() for k in s if k.startswith("prob_")}
     for t in sorted(tasks, key=list(TASKS).index):
         sources = [r for r in task_runs.get(t, runs) if f"prob_{t}" in loaded[r]]
         if not sources:
             continue
-        out[f"prob_{t}"] = np.mean([loaded[r][f"prob_{t}"] for r in sources], axis=0)
-        out[f"label_{t}"] = loaded[sources[0]][f"label_{t}"]
+        mapped = [to_current_classes(t, loaded[r][f"prob_{t}"], loaded[r][f"label_{t}"]) for r in sources]
+        out[f"prob_{t}"] = np.mean([p for p, _ in mapped], axis=0)
+        out[f"label_{t}"] = mapped[0][1]
     return out
-
-
-ACTION_GROUPS = {          # Law 12 families; tackling vs standing tackling is the
-    "tackle": ["standing tackling", "tackling"],   # annotators' most common confusion
-    "challenge": ["challenge", "pushing"],
-    "holding": ["holding"],
-    "elbowing": ["elbowing"],
-    "high leg": ["high leg"],
-    "dive": ["dive"],
-}
-
-
-def grouped_action(labels: np.ndarray, probs: np.ndarray, matches: np.ndarray) -> dict:
-    """Balanced accuracy after merging action classes into Law 12 families (probabilities summed)."""
-    from src.models.train import balanced_accuracy
-    from src.models.train_mt import clustered_ci
-
-    classes = TASKS["action_class"]
-    keep = labels != IGNORE
-    y, p = labels[keep], probs[keep]
-    group_of = {classes.index(c): g for g, members in enumerate(ACTION_GROUPS.values()) for c in members}
-    gp = np.zeros((len(y), len(ACTION_GROUPS)))
-    for i, g in group_of.items():
-        gp[:, g] += p[:, i]
-    gy = np.array([group_of[v] for v in y])
-    pred = gp.argmax(1)
-    return {"groups": list(ACTION_GROUPS), "balanced_accuracy": round(balanced_accuracy(gy, pred), 4),
-            "accuracy": round(float((pred == gy).mean()), 4), "ci95": clustered_ci(gy, pred, matches[keep])}
 
 
 def main() -> int:
@@ -99,9 +79,6 @@ def main() -> int:
         print(f"  {t:13s} ba {m['balanced_accuracy']:.3f} {m['ci95']}  "
               f"tuned {m.get('balanced_accuracy_tuned', float('nan')):.3f} "
               f"@ {report['thresholds'].get(t)}  recall {m['per_class_recall']}")
-        if t == "action_class":
-            report["valid"]["action_group"] = g = grouped_action(y, p, valid["matches"])
-            print(f"  {'action_group':13s} ba {g['balanced_accuracy']:.3f} {g['ci95']}  (6 Law 12 families)")
 
     out = RUNS_DIR / args.name
     out.mkdir(parents=True, exist_ok=True)
@@ -119,9 +96,6 @@ def main() -> int:
             print(f"  {t:13s} ba {m['balanced_accuracy']:.3f} {m['ci95']}  "
                   f"acc {m['accuracy']:.3f} (majority {m['majority_accuracy']:.3f})  "
                   f"selective@60% {m['selective_accuracy_60']:.3f}  recall {m['per_class_recall']}")
-            if t == "action_class":
-                report["test"]["action_group"] = g = grouped_action(y, p, test["matches"])
-                print(f"  {'action_group':13s} ba {g['balanced_accuracy']:.3f} {g['ci95']}  (6 Law 12 families)")
             pred = (p[:, 1] >= thr).astype(int) if thr is not None else p.argmax(1)
             rows[f"{t}_pred"] = [TASKS[t][i] for i in pred]
             rows[f"{t}_confidence"] = np.round(p[np.arange(len(pred)), pred], 4)

@@ -126,6 +126,17 @@ AUXILIARY_HEADS = [
     "touch_ball",
 ]
 
+# The action head predicts Law 12 families, not the annotators' 8 classes.
+# Round 4 recall was 0.02 for challenge and 0.00 for pushing and dive: challenge
+# is the same duel as a standing tackle, pushing is a hands foul like holding,
+# and dive has 73 training clips. Dive and "dont know" have no family.
+ACTION_FAMILIES = {
+    "tackle": ["standing tackling", "tackling", "challenge"],
+    "hands": ["holding", "pushing"],
+    "elbowing": ["elbowing"],
+    "high leg": ["high leg"],
+}
+
 # NOTE: the raw label vocabulary for each property must be read from the
 # dataset's annotations.json once downloaded and mapped here. Do not hardcode
 # guessed label strings — confirm them against the file.

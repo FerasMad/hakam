@@ -20,7 +20,8 @@ import torch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.features import extract as fx
-from src.models.data import TASKS, MultiViewDataset, normalise_on_device
+from src.models.data import (IGNORE, LEGACY_CLASSES, TASKS, MultiViewDataset, normalise_on_device,
+                             to_current_classes)
 from src.models.train import RUNS_DIR
 from src.models.train_mt import MultiTaskVideoMAE, action_scores, loader
 
@@ -29,7 +30,7 @@ from src.models.train_mt import MultiTaskVideoMAE, action_scores, loader
 def predict_flip(model, dl, device, tasks) -> dict[str, np.ndarray]:
     model.eval()
     n = len(dl.dataset)
-    probs = {t: np.zeros((n, len(TASKS[t])), dtype=np.float32) for t in tasks}
+    probs = {t: np.zeros((n, model.heads[t].out_features), dtype=np.float32) for t in tasks}
     for batch in dl:
         x = normalise_on_device(batch["pixel_values"].to(device, non_blocking=True))
         idx = batch["index"].numpy()
@@ -63,7 +64,16 @@ def main() -> int:
         tasks = m["tasks"]
         model = MultiTaskVideoMAE(m["backbone"], tasks, m.get("freeze_blocks", 9),
                                   hp.get("head_dropout", 0.3))
-        model.load_state_dict(torch.load(src / "final.pt", map_location="cpu"))
+        state = torch.load(src / "final.pt", map_location="cpu")
+        legacy_heads = []
+        for t, legacy in LEGACY_CLASSES.items():
+            w = state.get(f"heads.{t}.weight")
+            if w is not None and w.shape[0] == len(legacy) != len(TASKS[t]):
+                # Head trained on the 8 annotator classes: load it as-is and sum its
+                # probabilities into families after the softmax.
+                model.heads[t] = torch.nn.Linear(w.shape[1], len(legacy))
+                legacy_heads.append(t)
+        model.load_state_dict(state)
         model.to(device)
         out = RUNS_DIR / f"{run}_tta"
         out.mkdir(parents=True, exist_ok=True)
@@ -72,6 +82,8 @@ def main() -> int:
             ds = MultiViewDataset(split, tasks, m.get("cache_tag", "mv"), None, m.get("views", "all"),
                                   require_label=(split == "valid"))
             probs = predict_flip(model, loader(ds, args.batch_size, args.num_workers, False), device, tasks)
+            for t in legacy_heads:
+                probs[t], _ = to_current_classes(t, probs[t], np.full(len(probs[t]), IGNORE))
             np.savez(out / f"{split}_scores.npz", **action_scores(ds, probs))
         print(f"{run}: TTA scores -> {out}")
         del model

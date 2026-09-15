@@ -65,6 +65,10 @@ LEXICON: dict[str, set[str]] = {
     "red": {"طرد", "بطاقة حمراء", "الطرد"},
 
     # ---- action class ----------------------------------------------------
+    # Families are what the model emits (config.ACTION_FAMILIES); the fine
+    # labels below stay so the faithfulness check still recognises them.
+    "tackle": {"تدخل على المنافس", "التحام بدني"},
+    "hands": {"استخدام اليدين", "مخالفة باليدين"},
     "tackling": {"تدخل", "التحام", "تدخل على الكرة"},
     "standing tackling": {"تدخل من وضع الوقوف", "تدخل واقف", "تدخل دون انزلاق"},
     "high leg": {"رفع القدم عالياً", "قدم مرفوعة", "لعب خطير بالقدم المرفوعة"},

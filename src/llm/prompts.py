@@ -87,6 +87,8 @@ _FIELD_AR = {
 }
 
 _LABEL_AR = {
+    "tackle": "تدخل على المنافس",
+    "hands": "مخالفة باليدين",
     "tackling": "تدخل على الكرة",
     "standing tackling": "تدخل من وضع الوقوف",
     "high leg": "رفع القدم عالياً",
