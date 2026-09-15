@@ -89,7 +89,7 @@ Label vocabulary you must handle:
 | `offence` | `offence`, `no_offence` |
 | `card` | `card`, `no_card`, or `null` (when no offence) |
 | `card_colour` | `yellow`, `red`, or **`null` — the real model will almost always send null.** We cut this stage (only 27 red cards in training). Never invent a colour. |
-| `action_class` | `tackling`, `standing tackling`, `high leg`, `holding`, `pushing`, `elbowing`, `challenge`, `dive`, `dont know` |
+| `action_class` | **Law 12 families** (what the real model emits): `tackle` (standing tackling, tackling, challenge), `hands` (holding, pushing), `elbowing`, `high leg` — see `config.ACTION_FAMILIES`. Omitted from the contract when its confidence is below 0.60. Dive is not predicted. Mock contracts may still use the fine labels. |
 | `body_part` | `upper_body`, `under_body` |
 | `contact` | `with_contact`, `without_contact` |
 | `try_to_play`, `touch_ball` | `yes`, `no` |
