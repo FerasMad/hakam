@@ -4,7 +4,9 @@ import asyncio
 import logging
 import os
 import re
+import sys
 import tempfile
+import threading
 import time
 import uuid
 from collections.abc import Callable
@@ -65,6 +67,23 @@ def validate_video_file(path: Path) -> None:
         capture.release()
     if not ok or frame is None or frame.size == 0:
         raise InvalidVideoError("video contains no decodable frames")
+
+
+def warm_retrieval() -> None:
+    """Load the embedding model before the first request.
+
+    Without this, the first analysis after a restart spends ~10 s loading the
+    multilingual retrieval model. Runs in a background thread and never blocks
+    readiness; if it fails, the first request simply loads the model itself.
+    """
+    try:
+        from src.contract import mock_contract
+        from src.llm.retrieve import retrieve
+
+        retrieve(mock_contract(colour=None))
+        logger.info("Retrieval model warmed up")
+    except Exception:
+        logger.warning("Retrieval warm-up failed; the first request will load it", exc_info=True)
 
 
 def _origins() -> list[str]:
@@ -183,6 +202,8 @@ def create_app(
                 loaded.device,
                 ",".join(loaded.tasks),
             )
+            if os.getenv("HAKAM_WARM_UP", "1") != "0" and "pytest" not in sys.modules:
+                threading.Thread(target=warm_retrieval, name="hakam-warm-up", daemon=True).start()
         except ArtifactValidationError as exc:
             runtime.reason_code = exc.code
             logger.exception("Hakam model is not ready")

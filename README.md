@@ -74,6 +74,7 @@ Open <http://127.0.0.1:3000>; the local API runs at <http://127.0.0.1:8000>.
 | One explanation in the terminal | `python scripts/demo_llm.py` |
 | LLM evaluation (v1 vs v2 vs v3) | `python scripts/eval_llm.py` |
 | Tests | `python -m pytest -q` |
+| Full test on the test split (Colab) | `notebooks/full_test_colab.ipynb` → `scripts/full_test.py` |
 | Local smoke test | `python scripts/smoke_test.py http://127.0.0.1:8000 --frontend-url http://127.0.0.1:3000 --clip your_clip.mp4` |
 
 Without an API key the ruling is still produced, built from the contract and the Law 12
@@ -83,6 +84,11 @@ Real test-set contracts go in `artifacts/contracts/` (shared privately — they 
 derived from the NDA dataset).
 
 ## Presentation setup
+
+On Windows, `run_demo.bat` starts the API and the website and opens the browser.
+Run `python scripts/copy_samples.py` once to place the five **Test yourself** incidents
+(the highest-scoring test-set clips, see [`docs/AUDIT.md`](docs/AUDIT.md)) in the website;
+the clips are not committed.
 
 Hakam is delivered as a local presentation application. Keep the API and frontend
 terminals running on the presentation laptop, store `OPENAI_API_KEY` only in the

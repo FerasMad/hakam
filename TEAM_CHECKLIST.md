@@ -25,20 +25,30 @@
 
 ## Quality evidence
 
-- [x] Python suite: 148 passed, 5 skipped.
+- [x] Python suite: 153 passed (re-run 16 Sep during the audit).
 - [x] Frontend invariant verification passed.
 - [x] TypeScript check passed.
 - [x] Optimized frontend build passed.
 - [x] Local real-checkpoint smoke test passed.
 - [ ] Presentation-machine responsive/mobile visual pass (manual screen check).
-- [ ] Create the final 1–2 LLM presentation slides.
+- [x] Presentation deck created (team is finalising the slides).
 
 ## Final local release
 
 - [ ] Run the final API and frontend together on the presentation laptop.
 - [ ] Run `scripts/smoke_test.py` with an approved local clip.
 - [ ] Verify live OpenAI generation and the deterministic offline fallback.
-- [ ] Commit the integrated branch, push it, and open the final PR to `main`.
+- [x] Integrated branch merged to `main` (PR #2).
 - [ ] Keep the local checkpoint and a tested Python/Node environment on the presentation laptop.
 
 No Hugging Face Space, public URL, or online deployment secrets are required.
+
+## Audit — 16 September
+
+- [x] Full test of the final model on all 301 test incidents reproduces the reported results ([`docs/AUDIT.md`](docs/AUDIT.md)).
+- [x] Offline ruling on every answered test decision: six sections, 0 unsupported claims, correct Law 12 articles.
+- [x] Backend warms up the retrieval model at start (no slow first analysis).
+- [x] Website **Test yourself** section with the five highest-scoring test incidents (`python scripts/copy_samples.py`).
+- [x] One-command local demo: `run_demo.bat`.
+- [ ] Commit the final presentation.
+

@@ -7,8 +7,10 @@ import { Header } from "@/components/header";
 import { HumanReview } from "@/components/human-review";
 import { NormalResult } from "@/components/normal-result";
 import { ProcessingState } from "@/components/processing-state";
+import { TestYourself } from "@/components/test-yourself";
 import { UploadStation } from "@/components/upload-station";
 import { analysisErrorMessage, uiCopy } from "@/lib/i18n";
+import type { SampleIncident } from "@/lib/samples";
 import { analysisService, AnalysisServiceError } from "@/lib/services/analysis";
 import type { AnalysisResult, Language } from "@/lib/types";
 import { validateVideoSelection, type VideoValidationError } from "@/lib/video-validation";
@@ -35,6 +37,8 @@ export function HakamReviewRoom() {
   const [validation, setValidation] = useState<ValidationState>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [serviceErrorCode, setServiceErrorCode] = useState<string | null>(null);
+  const [sample, setSample] = useState<SampleIncident | null>(null);
+  const [autoAnalyze, setAutoAnalyze] = useState(false);
 
   const fileInput = useRef<HTMLInputElement>(null);
   const previewUrlRef = useRef<string | null>(null);
@@ -69,7 +73,7 @@ export function HakamReviewRoom() {
     }
   }
 
-  function selectFiles(files: FileList) {
+  function selectFiles(files: FileList | File[], fromSample: SampleIncident | null = null) {
     const checked = validateVideoSelection(files);
     if (!checked.ok) {
       setValidation(checked.error);
@@ -87,6 +91,8 @@ export function HakamReviewRoom() {
     const nextUrl = URL.createObjectURL(checked.file);
     previewUrlRef.current = nextUrl;
     setFile(checked.file);
+    setSample(fromSample);
+    setAutoAnalyze(Boolean(fromSample));
     setPreviewUrl(nextUrl);
     setPreviewReady(false);
     setValidation(null);
@@ -101,6 +107,8 @@ export function HakamReviewRoom() {
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     previewUrlRef.current = null;
     setFile(null);
+    setSample(null);
+    setAutoAnalyze(false);
     setPreviewUrl(null);
     setPreviewReady(false);
     setValidation(null);
@@ -143,6 +151,15 @@ export function HakamReviewRoom() {
       if (analysisAbort.current === controller) analysisAbort.current = null;
     }
   }
+
+  useEffect(() => {
+    // A "Test yourself" incident is analyzed as soon as its preview can play.
+    if (autoAnalyze && previewReady && view === "selected") {
+      setAutoAnalyze(false);
+      void analyze();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAnalyze, previewReady, view]);
 
   const showIntro = view === "empty" || view === "selected";
 
@@ -200,6 +217,16 @@ export function HakamReviewRoom() {
               setValidation("preview_error");
             }}
           />
+        ) : null}
+
+        {view === "empty" ? (
+          <TestYourself language={language} onSample={(chosen, sampleFile) => selectFiles([sampleFile], chosen)} />
+        ) : null}
+
+        {sample && (view === "processing" || view === "result") ? (
+          <p className="mt-10 border-s-2 border-copper bg-copper/[0.06] px-4 py-3 text-sm text-chalk">
+            {copy.sampleIncident} {sample.id} · {copy.refereeDecision}: {copy[sample.refereeKey]} · {copy[sample.detailKey]}
+          </p>
         ) : null}
 
         {view === "processing" && previewUrl && file ? (

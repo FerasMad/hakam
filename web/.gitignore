@@ -4,3 +4,6 @@ out/
 *.log
 *.tsbuildinfo
 .env*.local
+
+# "Test yourself" clips from the dataset (scripts/copy_samples.py) are not published
+public/samples/
