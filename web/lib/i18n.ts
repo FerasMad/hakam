@@ -96,7 +96,7 @@ export const uiCopy = {
     researchLabel: "Research prototype",
     teamLabel: "Project team · LinkedIn",
     footerText:
-      "Hakam is a Computer Science graduation project for assisted incident review. It is not an official refereeing authority and does not guarantee correctness.",
+      "Hakam is a capstone project for Tuwaiq Academy, created to support football incident review. It is not an official refereeing authority and does not guarantee correctness.",
     invalidOneFile: "Select exactly one video clip.",
     invalidType: "Choose a video format this browser can preview.",
     invalidTooLarge: "Choose a video smaller than 200 MB.",
@@ -198,7 +198,7 @@ export const uiCopy = {
     researchLabel: "نموذج بحثي",
     teamLabel: "فريق المشروع · لينكدإن",
     footerText:
-      "حكم مشروع تخرج في علوم الحاسب لمساندة مراجعة الوقائع، وليس جهة تحكيم رسمية ولا يضمن صحة القرار.",
+      "حكم مشروع تخرج ضمن أكاديمية طويق، طُوّر لمساندة مراجعة وقائع كرة القدم، وليس جهة تحكيم رسمية ولا يضمن صحة القرار.",
     invalidOneFile: "اختر مقطع فيديو واحداً فقط.",
     invalidType: "اختر صيغة فيديو يستطيع هذا المتصفح معاينتها.",
     invalidTooLarge: "اختر مقطع فيديو يقل حجمه عن ٢٠٠ ميجابايت.",
