@@ -1,0 +1,4 @@
+split,actions,actions_official,clips,clips_valid,multiview_actions,ambiguous,conflicts,excluded
+train,2916,2916,6621,6621,2916,541,0,1
+valid,411,411,970,970,411,85,0,0
+test,301,301,706,706,301,49,0,0

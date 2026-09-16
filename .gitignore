@@ -1,0 +1,34 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.ipynb_checkpoints/
+*.pth
+*.pth.tar
+*.ckpt
+features_cache/
+.DS_Store
+
+# Pilot/training outputs. The CSVs carry dataset annotations, which the NDA
+# covers - keep them local.
+artifacts/
+
+# Laws of the Game source PDFs stay local; the curated corpus is committed.
+laws/*.pdf
+laws/raw/*.pdf
+
+# Pretrained detector weights, downloaded on demand
+yolov8n.pt
+*.pt
+
+frame_cache/
+
+# Local PDF inspection outputs
+tmp/
+
+# Model weights (see weights/README.md) and the built frontend
+weights/*
+!weights/README.md
+web/node_modules/
+web/dist/

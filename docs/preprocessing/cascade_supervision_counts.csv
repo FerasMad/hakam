@@ -1,0 +1,10 @@
+split,stage,supervised,of_total,n_offence,n_no_offence,n_no_card,n_card,n_yellow,n_red
+train,offence,2819,2916,2495.0,324.0,,,,
+train,card,2060,2916,,,1303.0,757.0,,
+train,card_colour,713,2916,,,,,686.0,27.0
+valid,offence,396,411,362.0,34.0,,,,
+valid,card,299,411,,,184.0,115.0,,
+valid,card_colour,107,411,,,,,104.0,3.0
+test,offence,286,301,264.0,22.0,,,,
+test,card,230,301,,,153.0,77.0,,
+test,card_colour,73,301,,,,,68.0,5.0

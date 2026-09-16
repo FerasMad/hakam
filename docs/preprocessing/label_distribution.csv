@@ -1,0 +1,58 @@
+split,field,value,count
+train,Offence,Offence,2495
+train,Offence,No offence,324
+train,Offence,Between,96
+train,Offence,(empty),1
+train,Severity,1.0,1402
+train,Severity,3.0,687
+train,Severity,2.0,403
+train,Severity,(empty),353
+train,Severity,4.0,44
+train,Severity,5.0,27
+train,Action class,Standing tackling,1264
+train,Action class,Tackling,448
+train,Action class,Challenge,383
+train,Action class,Holding,361
+train,Action class,Elbowing,178
+train,Action class,High leg,103
+train,Action class,Pushing,88
+train,Action class,Dont know,52
+train,Action class,Dive,28
+train,Action class,(empty),11
+valid,Offence,Offence,362
+valid,Offence,No offence,34
+valid,Offence,Between,15
+valid,Severity,1.0,198
+valid,Severity,3.0,104
+valid,Severity,2.0,63
+valid,Severity,(empty),35
+valid,Severity,4.0,8
+valid,Severity,5.0,3
+valid,Action class,Standing tackling,168
+valid,Action class,Tackling,80
+valid,Action class,Holding,63
+valid,Action class,Challenge,42
+valid,Action class,Elbowing,19
+valid,Action class,High leg,18
+valid,Action class,Pushing,13
+valid,Action class,Dont know,5
+valid,Action class,(empty),2
+valid,Action class,Dive,1
+test,Offence,Offence,264
+test,Offence,No offence,22
+test,Offence,Between,15
+test,Severity,1.0,168
+test,Severity,3.0,68
+test,Severity,2.0,30
+test,Severity,(empty),26
+test,Severity,5.0,5
+test,Severity,4.0,4
+test,Action class,Standing tackling,127
+test,Action class,Challenge,50
+test,Action class,Tackling,48
+test,Action class,Holding,33
+test,Action class,Elbowing,21
+test,Action class,High leg,9
+test,Action class,Pushing,7
+test,Action class,Dive,5
+test,Action class,(empty),1
