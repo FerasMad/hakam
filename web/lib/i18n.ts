@@ -94,6 +94,7 @@ export const uiCopy = {
     safeFallback: "Deterministic safe fallback",
     groundedLlm: "Grounded language generation",
     researchLabel: "Research prototype",
+    teamLabel: "Project team · LinkedIn",
     footerText:
       "Hakam is a Computer Science graduation project for assisted incident review. It is not an official refereeing authority and does not guarantee correctness.",
     invalidOneFile: "Select exactly one video clip.",
@@ -195,6 +196,7 @@ export const uiCopy = {
     safeFallback: "بديل حتمي آمن",
     groundedLlm: "صياغة لغوية مؤسّسة",
     researchLabel: "نموذج بحثي",
+    teamLabel: "فريق المشروع · لينكدإن",
     footerText:
       "حكم مشروع تخرج في علوم الحاسب لمساندة مراجعة الوقائع، وليس جهة تحكيم رسمية ولا يضمن صحة القرار.",
     invalidOneFile: "اختر مقطع فيديو واحداً فقط.",

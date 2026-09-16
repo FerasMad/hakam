@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Language } from "@/lib/types";
 import { uiCopy } from "@/lib/i18n";
 
@@ -18,10 +19,15 @@ export function Header({
     <header className="border-b border-white/[0.07] bg-carbon/90 backdrop-blur-md">
       <div className="mx-auto flex min-h-[6.25rem] max-w-canvas items-center justify-between gap-5 px-5 sm:px-8 lg:px-12">
         <a href="#main" className="group flex items-center gap-3" aria-label={copy.brandLabel}>
-          <span className="relative grid h-10 w-10 place-items-center border border-hairline bg-charcoal text-sm font-bold tracking-[0.12em] text-chalk transition-colors group-hover:border-pitch/60">
-            H
-            <span className="absolute -end-px -top-px h-2.5 w-2.5 border-e border-t border-pitch" />
-            <span className="absolute -bottom-px -start-px h-2.5 w-2.5 border-b border-s border-pitch" />
+          <span className="relative grid h-12 w-12 shrink-0 place-items-center sm:h-14 sm:w-14">
+            <Image
+              src="/hakam-robot-referee.png"
+              alt=""
+              width={56}
+              height={56}
+              priority
+              className="h-full w-full object-contain transition-transform duration-200 group-hover:scale-105"
+            />
           </span>
           <span>
             <span className="flex items-baseline gap-2">

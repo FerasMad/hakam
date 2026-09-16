@@ -9,6 +9,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Hakam — Football Incident Review",
   description: "A grounded AI football refereeing assistant.",
+  icons: {
+    icon: "/hakam-robot-referee.png",
+    apple: "/hakam-robot-referee.png",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
