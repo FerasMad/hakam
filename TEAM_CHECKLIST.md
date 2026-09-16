@@ -48,7 +48,7 @@ No Hugging Face Space, public URL, or online deployment secrets are required.
 - [x] Full test of the final model on all 301 test incidents reproduces the reported results ([`docs/AUDIT.md`](docs/AUDIT.md)).
 - [x] Offline ruling on every answered test decision: six sections, 0 unsupported claims, correct Law 12 articles.
 - [x] Backend warms up the retrieval model at start (no slow first analysis).
-- [x] Website **Test yourself** section with the five highest-scoring test incidents (`python scripts/copy_samples.py`).
+- [x] Website **Test yourself** section with the five highest-scoring test incidents (clips in `web/public/samples/`).
 - [x] One-command local demo: `run_demo.bat`.
 - [ ] Commit the final presentation.
 

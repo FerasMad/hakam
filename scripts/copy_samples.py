@@ -4,8 +4,8 @@
 
 The clips are the close-up replays of the five highest-scoring test incidents
 (see web/lib/samples.ts and docs/AUDIT.md). They come from the SoccerNet-MVFoul
-test split in data/mvfouls/Test and are copied to web/public/samples/, which is
-gitignored - the dataset clips are not published in the repository.
+test split in data/mvfouls/Test. They are already committed in web/public/samples/;
+run this only to restore them from the dataset.
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 // "Test yourself" incidents: the five highest-scoring test-set incidents from the full test
 // (scripts/full_test.py, last-clip mode). In each, the model agreed with the referee on
 // offence, card, action family and body part; ranked by the model's weakest confidence.
-// Clips are copied into public/samples by scripts/copy_samples.py and are not committed.
+// Clips live in public/samples (committed; SoccerNet-MVFoul test split, used with KAUST's permission).
 
 export type SampleIncident = {
   id: string;

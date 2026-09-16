@@ -86,9 +86,8 @@ derived from the NDA dataset).
 ## Presentation setup
 
 On Windows, `run_demo.bat` starts the API and the website and opens the browser.
-Run `python scripts/copy_samples.py` once to place the five **Test yourself** incidents
-(the highest-scoring test-set clips, see [`docs/AUDIT.md`](docs/AUDIT.md)) in the website;
-the clips are not committed.
+The website's **Test yourself** section plays the five highest-scoring test-set incidents
+(see [`docs/AUDIT.md`](docs/AUDIT.md)); their clips are in `web/public/samples/`.
 
 Hakam is delivered as a local presentation application. Keep the API and frontend
 terminals running on the presentation laptop, store `OPENAI_API_KEY` only in the
