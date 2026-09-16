@@ -58,6 +58,23 @@ def test_unknown_colour_is_stated_conditionally():
     assert "إذا اعتُبر التدخل متهوراً فالعقوبة إنذار" in ruling.disciplinary
 
 
+def test_simulation_uses_its_own_disciplinary_rule():
+    contract = _contract(action="dive")
+    ruling = build_ruling(contract)
+
+    assert "محاولة خداع الحكم" in ruling.disciplinary
+    assert "جزاءه الإنذار" in ruling.disciplinary
+    assert "قوة مفرطة" not in ruling.disciplinary
+    assert ruling.article_ids == ["law12-3-simulation"]
+
+
+def test_why_line_does_not_infer_severity_from_card_decision():
+    ruling = build_ruling(CASES["tackle card"])
+
+    assert "درجة التهور" not in ruling.why
+    assert "تستوجب بطاقة" not in ruling.why
+
+
 def test_penalty_area_is_conditional_because_location_is_unknown():
     assert "إذا وقعت داخل منطقة جزاء المخالف" in build_ruling(CASES["elbowing"]).restart
 

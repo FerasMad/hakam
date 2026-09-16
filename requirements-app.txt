@@ -1,0 +1,15 @@
+# Tested local web-application runtime (16 September 2026).
+numpy==2.1.3
+pandas==2.2.3
+torch==2.13.0
+transformers==5.17.0
+opencv-python-headless==5.0.0.93
+sentence-transformers==6.0.1
+openai==3.8.0
+fastapi==0.119.0
+pydantic==2.10.3
+uvicorn[standard]==0.52.1
+python-multipart==0.0.32
+python-dotenv==1.1.0
+huggingface_hub==1.21.0
+httpx==0.28.1

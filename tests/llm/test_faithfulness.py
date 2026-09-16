@@ -82,6 +82,24 @@ def test_attached_text_and_generic_intervention_are_not_action_claims():
     assert "tackling" not in result["claimed_labels"]
 
 
+def test_generic_tackle_word_is_supported_for_standing_tackle_contract():
+    contract = mock_contract(colour=None)
+    contract.attributes["action_class"].label = "standing tackling"
+    result = score(
+        (
+            "القرار: مخالفة — تستوجب بطاقة — لون البطاقة غير محدد\n"
+            "لماذا تُعد مخالفة: صُنّف الفعل تدخل من وضع الوقوف، وإذا اعتُبر "
+            "التدخل متهوراً فتستوجب الواقعة إنذاراً.\n"
+            "المادة: القانون 12"
+        ),
+        contract,
+        [{"law": "Law 12", "section": "Direct free kick"}],
+    )
+
+    assert result["unsupported"] == []
+    assert result["faithfulness"] == 1.0
+
+
 def test_law_title_does_not_break_low_confidence_hedging():
     contract = mock_contract(colour=None)
     contract.attributes["action_class"].label = "elbowing"

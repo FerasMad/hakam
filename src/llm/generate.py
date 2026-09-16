@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import logging
+import time
 from dataclasses import dataclass
 
 from src.config import ABSTAIN_MESSAGE_AR, LLM_MAX_TOKENS, LLM_MODEL
@@ -26,6 +28,7 @@ _REQUIRED_PREFIXES = {
     "v3": ("القرار:", "العقوبة الفنية:", "العقوبة الانضباطية:", "المادة:", "لماذا", "مستوى الثقة:"),
 }
 V3_ARTICLES = 5
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -36,6 +39,11 @@ class Explanation:
     abstained: bool
     model: str
     sections: dict | None = None
+    request_ids: tuple[str, ...] = ()
+    input_tokens: int = 0
+    output_tokens: int = 0
+    latency_seconds: float = 0.0
+    attempts: int = 0
 
 
 def _extract_explanation(text: str) -> str:
@@ -197,6 +205,11 @@ def explain(contract: HakamContract, prompt_version: str = "v3") -> Explanation:
     sections = None
     request_input = user_message
     reasons: list[str] = []
+    started = time.perf_counter()
+    request_ids: list[str] = []
+    input_tokens = 0
+    output_tokens = 0
+    attempts = 0
     for attempt in range(3):
         response = client.responses.create(
             model=LLM_MODEL,
@@ -205,6 +218,20 @@ def explain(contract: HakamContract, prompt_version: str = "v3") -> Explanation:
             reasoning={"effort": "minimal"},
             max_output_tokens=LLM_MAX_TOKENS,
             store=False,
+        )
+        attempts += 1
+        request_id = getattr(response, "_request_id", None)
+        if request_id:
+            request_ids.append(str(request_id))
+        usage = getattr(response, "usage", None)
+        input_tokens += int(getattr(usage, "input_tokens", 0) or 0)
+        output_tokens += int(getattr(usage, "output_tokens", 0) or 0)
+        logger.info(
+            "OpenAI explanation attempt=%s request_id=%s input_tokens=%s output_tokens=%s",
+            attempts,
+            request_id or "unavailable",
+            int(getattr(usage, "input_tokens", 0) or 0),
+            int(getattr(usage, "output_tokens", 0) or 0),
         )
         raw_text = (response.output_text or "").strip()
         if not raw_text:
@@ -242,4 +269,9 @@ def explain(contract: HakamContract, prompt_version: str = "v3") -> Explanation:
         abstained=False,
         model=LLM_MODEL,
         sections=sections,
+        request_ids=tuple(request_ids),
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        latency_seconds=round(time.perf_counter() - started, 3),
+        attempts=attempts,
     )

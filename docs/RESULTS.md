@@ -75,8 +75,9 @@ is below 60%.
 ## Language layer
 
 See [`llm/REPORT.md`](llm/REPORT.md): 47 curated bilingual Law 12 / Law 5 chunks,
-hybrid retrieval, prompt v2 with claim checking. On 24 test contracts v2 reached
-1.00 label faithfulness with 0% unsupported claims (v1: 0.71 and 67%).
+hybrid retrieval, prompt v3 with deterministic restart/sanction and claim checking.
+On 24 test contracts v3 reached 1.00 label faithfulness with 0% unsupported claims
+(final v1 rerun: 0.784 faithfulness and 54.2% outputs with unsupported claims).
 
 ## Limitations
 

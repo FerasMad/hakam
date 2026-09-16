@@ -212,10 +212,16 @@ def score(explanation_ar: str, contract: HakamContract, articles: list[dict]) ->
     for label in claimed:
         if label in allowed:
             supported.add(label)
-        elif label in {"tackling", "challenge"} and allowed & {"tackling", "challenge", "tackle"}:
+        elif label in {"tackling", "challenge"} and allowed & {
+            "tackle",
+            "tackling",
+            "standing tackling",
+            "challenge",
+        }:
             # The generic forms «تدخل» / «التحام» are how Arabic names a tackle, so
-            # they are supported by the tackle family. Naming a specific member of
-            # a family (holding for "hands") is not: the model did not claim it.
+            # they are supported by every tackle-family label, including the legacy
+            # ``standing tackling`` value. Naming a specific member of another family
+            # (holding for "hands") is not: the model did not claim it.
             supported.add(label)
     unsupported = claimed - supported
 
