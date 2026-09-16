@@ -100,7 +100,7 @@ def _restart(contract: HakamContract, family: str | None) -> tuple[str, list[str
             "(مكان الواقعة لا يرد في العقد)."), ids + ["law12-1-contact-direct-free-kick"]
 
 
-def _disciplinary(contract: HakamContract) -> tuple[str, list[str]]:
+def _disciplinary(contract: HakamContract, family: str | None) -> tuple[str, list[str]]:
     if contract.offence.label == "no_offence":
         return "لا عقوبة انضباطية.", []
     card = contract.card
@@ -112,6 +112,10 @@ def _disciplinary(contract: HakamContract) -> tuple[str, list[str]]:
             "law12-no-card-careless", "law12-1-careless-definition"]
 
     colour = contract.card_colour
+    if family == "dive" and colour is None:
+        return (_hedge(card, "تستوجب بطاقة، ولون البطاقة غير محدد في العقد؛")
+                + " وإذا انطبق وصف محاولة خداع الحكم، فالقانون 12 يعاملها سلوكاً غير رياضي "
+                  "جزاءه الإنذار."), ["law12-3-simulation"]
     if colour is None:
         return (_hedge(card, "تستوجب بطاقة، ولون البطاقة غير محدد:")
                 + " إذا اعتُبر التدخل متهوراً فالعقوبة إنذار، وإذا كان باستخدام قوة مفرطة فالعقوبة طرد."), [
@@ -156,19 +160,13 @@ def _why(contract: HakamContract, family: str | None) -> tuple[str, str]:
         sentences.append("والقانون 12 يعد هذا الفعل خطأً يستوجب ركلة حرة مباشرة إذا ارتُكب "
                          "بإهمال أو تهور أو قوة مفرطة.")
 
-    card = contract.card
-    maybe = "على الأرجح " if _weak(card) else ""
-    if card is not None and card.label == "card":
-        sentences.append(f"وبما أن الواقعة {maybe}تستوجب بطاقة، فإن القانون يضعها في درجة التهور على الأقل.")
-    elif card is not None and card.label == "no_card":
-        sentences.append(f"وبما أن الواقعة {maybe}لا تستوجب بطاقة، فإنها لا تتجاوز درجة الإهمال.")
     return "لماذا تُعد مخالفة", " ".join(sentences)
 
 
 def build_ruling(contract: HakamContract) -> Ruling:
     family = action_family(contract)
     restart, restart_ids = _restart(contract, family)
-    disciplinary, disc_ids = _disciplinary(contract)
+    disciplinary, disc_ids = _disciplinary(contract, family)
     why_title, why = _why(contract, family)
     ids = list(dict.fromkeys(restart_ids + disc_ids))
     return Ruling(restart=restart, disciplinary=disciplinary, why=why,

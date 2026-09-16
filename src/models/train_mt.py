@@ -58,11 +58,31 @@ class MultiTaskVideoMAE(nn.Module):
             base = build_model(backbone_key, 2, freeze_blocks, 0.0)
         else:
             # Inference: every weight comes from our own checkpoint, so only the
-            # architecture is needed - no 350 MB pretrained download.
+            # architecture is needed - no pretrained model or network access.
             from transformers import VideoMAEConfig, VideoMAEForVideoClassification
 
-            base = VideoMAEForVideoClassification(
-                VideoMAEConfig.from_pretrained(config.BACKBONES[backbone_key]["name"]))
+            if backbone_key in {"videomae_base", "videomae_base_ssv2"}:
+                # Both deployed base variants use the standard VideoMAE-base
+                # architecture. Strict state loading remains the compatibility
+                # guard for the downloaded checkpoint.
+                architecture = VideoMAEConfig(
+                    image_size=224,
+                    patch_size=16,
+                    num_channels=3,
+                    num_frames=16,
+                    tubelet_size=2,
+                    hidden_size=768,
+                    num_hidden_layers=12,
+                    num_attention_heads=12,
+                    intermediate_size=3072,
+                    qkv_bias=True,
+                    use_mean_pooling=True,
+                )
+            else:
+                architecture = VideoMAEConfig.from_pretrained(
+                    config.BACKBONES[backbone_key]["name"]
+                )
+            base = VideoMAEForVideoClassification(architecture)
         self.videomae = base.videomae
         self.fc_norm = base.fc_norm
         dim = config.BACKBONES[backbone_key]["dim"]

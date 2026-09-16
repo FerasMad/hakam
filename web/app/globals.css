@@ -1,0 +1,272 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --carbon: #090b0c;
+  --charcoal: #111416;
+  --raised: #181c1e;
+  --chalk: #f2f0e9;
+  --muted: #a2a9a6;
+  --hairline: #2c3335;
+  --pitch: #31c795;
+  --copper: #c49073;
+  --danger: #d67272;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--carbon);
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--carbon);
+  color: var(--chalk);
+  font-family: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+html[dir="rtl"] body {
+  font-family: "IBM Plex Sans Arabic", Tahoma, Arial, sans-serif;
+}
+
+html[dir="rtl"] .tracking-broadcast {
+  letter-spacing: 0;
+}
+
+html[dir="rtl"] h1,
+html[dir="rtl"] h2,
+html[dir="rtl"] h3,
+html[dir="rtl"] .arabic-editorial,
+html[dir="rtl"] .arabic-editorial * {
+  letter-spacing: 0;
+}
+
+::selection {
+  background: rgba(49, 199, 149, 0.28);
+  color: var(--chalk);
+}
+
+button,
+input,
+select,
+summary {
+  font: inherit;
+}
+
+button,
+summary,
+select,
+label[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--pitch);
+  outline-offset: 4px;
+}
+
+.skip-link {
+  position: fixed;
+  inset-block-start: 0.75rem;
+  inset-inline-start: 0.75rem;
+  z-index: 100;
+  min-height: 2.75rem;
+  padding: 0.75rem 1rem;
+  transform: translateY(-160%);
+  border: 1px solid var(--pitch);
+  background: var(--chalk);
+  color: var(--carbon);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: transform 150ms ease;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.site-grid {
+  position: relative;
+  isolation: isolate;
+}
+
+.site-grid::before {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  content: "";
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent calc(50% - 0.5px), rgba(242, 240, 233, 0.025) 50%, transparent calc(50% + 0.5px)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 22rem);
+}
+
+.site-grid::after {
+  position: fixed;
+  inset-inline: 0;
+  top: 6.25rem;
+  z-index: -1;
+  height: 1px;
+  content: "";
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(49, 199, 149, 0.14), transparent);
+}
+
+.review-frame {
+  position: relative;
+}
+
+.review-corner {
+  position: absolute;
+  z-index: 20;
+  width: 1.5rem;
+  height: 1.5rem;
+  pointer-events: none;
+}
+
+.review-corner::before,
+.review-corner::after {
+  position: absolute;
+  content: "";
+  background: currentColor;
+}
+
+.review-corner::before {
+  width: 100%;
+  height: 1px;
+}
+
+.review-corner::after {
+  width: 1px;
+  height: 100%;
+}
+
+.review-corner--tl {
+  inset-block-start: -1px;
+  inset-inline-start: -1px;
+}
+
+.review-corner--tr {
+  inset-block-start: -1px;
+  inset-inline-end: -1px;
+  transform: scaleX(-1);
+}
+
+.review-corner--bl {
+  inset-block-end: -1px;
+  inset-inline-start: -1px;
+  transform: scaleY(-1);
+}
+
+.review-corner--br {
+  inset-block-end: -1px;
+  inset-inline-end: -1px;
+  transform: scale(-1);
+}
+
+.video-element {
+  direction: ltr;
+}
+
+.technical-value {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+}
+
+.threshold-label {
+  transform: translateX(-50%);
+}
+
+html[dir="rtl"] .threshold-label {
+  transform: translateX(50%);
+}
+
+.arabic-editorial {
+  direction: rtl;
+  font-family: "IBM Plex Sans Arabic", Tahoma, Arial, sans-serif;
+  text-align: start;
+}
+
+.arabic-ruling-copy {
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.processing-scan {
+  position: absolute;
+  inset-inline: 0;
+  top: 16%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(49, 199, 149, 0.9), transparent);
+  box-shadow: 0 0 18px rgba(49, 199, 149, 0.24);
+  animation: scan-review 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.processing-tick {
+  animation: processing-tick 1.5s ease-in-out infinite;
+}
+
+.processing-tick:nth-child(2) {
+  animation-delay: 180ms;
+}
+
+.processing-tick:nth-child(3) {
+  animation-delay: 360ms;
+}
+
+@keyframes scan-review {
+  0%,
+  100% {
+    top: 16%;
+    opacity: 0.2;
+  }
+  50% {
+    top: 82%;
+    opacity: 0.95;
+  }
+}
+
+@keyframes processing-tick {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scaleY(0.45);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+details > summary {
+  list-style: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

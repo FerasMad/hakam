@@ -50,18 +50,18 @@ safe draft rather than returning an unsafe answer.
 
 ## Evaluation
 
-`scripts/eval_llm.py` evaluated both prompts on 24 contracts (48 outputs). The set covers every
+`scripts/eval_llm.py` evaluated all three prompts on 24 contracts (72 outputs). The set covers every
 action class, offence and no-offence decisions, card and no-card decisions, known and null colours,
 low-confidence attributes, and two abstention cases. The figures below are from the final hybrid
-retrieval run with `gpt-5-nano` on 14 September 2026.
+retrieval run with `gpt-5-nano` on 16 September 2026.
 
-| Metric | v1 | v2 |
-|---|---:|---:|
-| Mean label faithfulness | 0.710 | **1.000** |
-| Outputs with unsupported label claims | 66.7% | **0.0%** |
-| Outputs citing a retrieved article | 87.5% | **91.7%** |
-| Correct abstention | 100.0% | **100.0%** |
-| Hedging on non-abstaining low-confidence cases | 33.3% | **100.0%** |
+| Metric | v1 | v2 | v3 |
+|---|---:|---:|---:|
+| Mean label faithfulness | 0.784 | **1.000** | **1.000** |
+| Outputs with unsupported label claims | 54.2% | **0.0%** | **0.0%** |
+| Outputs citing a retrieved article | 91.7% | **91.7%** | **91.7%** |
+| Correct abstention | 100.0% | **100.0%** | **100.0%** |
+| Hedging on non-abstaining low-confidence cases | 33.3% | **100.0%** | **100.0%** |
 
 The citation denominator includes the two correctly abstained cases. They deliberately retrieve no
 article and call no API, so the maximum observed all-case citation rate is 22/24 = 91.7%.
@@ -72,12 +72,12 @@ contract reports an offence, a card with no specified colour, raised-foot action
 then cites the dangerous-play-with-contact article. This is the practical gain from the safe draft
 and response guard.
 
-Ten v2 outputs were also audited manually. Every incident claim was marked individually as either
+Ten v3 outputs were also audited manually. Every incident claim was marked individually as either
 supported by the contract, supported by a retrieved law, or wrong. The final audit passed 10/10:
 no added visual fact, sanction, colour, or unhedged low-confidence value remained. The detailed
 rows are in the local `artifacts/llm/manual_audit.csv`.
 
-## Prompt v3 — the full ruling after the clip (15 September 2026)
+## Prompt v3 — the full ruling after the clip (final rerun 16 September 2026)
 
 v3 is now the default. It explains the whole ruling in six lines:
 
@@ -98,8 +98,8 @@ area), whether a raised foot made contact, the card colour — the rule is state
 conditionally rather than guessed. The same claim check, repair loop and safe
 fallback as v2 apply; the deterministic ruling passes the faithfulness check with
 no unsupported claims on every contract type in `tests/llm/test_ruling.py`.
-`scripts/eval_llm.py` now compares v1, v2 and v3; the v3 figures need a rerun with the
-API key.
+The final live rerun confirms 1.000 mean faithfulness, zero unsupported outputs,
+100% correct abstention, and 100% hedging on low-confidence non-abstaining cases.
 
 ## Abstention and uncertainty
 
@@ -108,6 +108,32 @@ before importing or constructing the OpenAI client. This is covered by a mocked-
 lower-confidence secondary field does not stop the explanation; its incident statement is prefixed
 with `على الأرجح`, or the field is omitted. A null `card_colour` is stated as unknown and never
 converted into yellow or red.
+
+## Production verification and cost
+
+The integrated FastAPI/Next.js application was exercised with the real
+`hakam-refit-v3` checkpoint and an approved SoccerNet-MVFoul clip. The warm CPU
+container completed vision inference, retrieval, live generation, claim checking,
+and response rendering in 3.2 seconds. The uploaded clip produced an offence/no-card
+contract and a complete ruling with no unsupported claims. The same production image
+also passed frontend delivery, health/readiness, model-head, threshold, and request-ID
+checks.
+
+A separately instrumented v3 explanation used one OpenAI request, 1,549 input tokens,
+76 output tokens, and 1.704 seconds. At the published GPT-5 nano rates of $0.05 per
+million input tokens and $0.40 per million output tokens, that sample cost approximately
+**$0.000108**. Actual cost can be higher when the repair loop retries. Request IDs and
+token usage are recorded in server logs without logging prompts or secrets.
+
+| Case | Engine | Seconds | Unsupported | Restart | Sanction | Evidence |
+|---|---|---:|---:|---|---|---|
+| Mock offence + card | grounded LLM | 1.704 | 0 | correct | correct/conditional colour | instrumented v3 demo |
+| Approved uploaded clip | grounded LLM | 3.2 warm CPU | 0 | correct | correct (no card) | container smoke test |
+| Low-confidence offence | abstention, no API | n/a | 0 | n/a | n/a | evaluation + unit test |
+| Provider unavailable/key absent | deterministic v3 | tested | 0 | correct | correct | backend fallback test |
+
+The pricing calculation uses the official
+[GPT-5 nano model page](https://developers.openai.com/api/docs/models/gpt-5-nano).
 
 ## Limitations
 

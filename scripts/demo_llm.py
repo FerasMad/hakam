@@ -55,6 +55,20 @@ def main() -> None:
     print(explanation.text_ar)
     print("\nFAITHFULNESS")
     print(json.dumps(faithfulness, ensure_ascii=False, indent=2))
+    print("\nOPENAI TELEMETRY")
+    print(
+        json.dumps(
+            {
+                "request_ids": explanation.request_ids,
+                "input_tokens": explanation.input_tokens,
+                "output_tokens": explanation.output_tokens,
+                "latency_seconds": explanation.latency_seconds,
+                "attempts": explanation.attempts,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

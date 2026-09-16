@@ -40,7 +40,7 @@ contains, which makes grounding structural rather than a prompt instruction.
 | Offence | **0.64** |
 | Body part | **0.68** |
 | Action family (4 classes) | **0.54** |
-| Explanation faithfulness (prompt v2) | **1.00**, 0% unsupported claims |
+| Explanation faithfulness (prompt v3) | **1.00**, 0% unsupported claims |
 
 Details, experiment history and limitations: [`docs/RESULTS.md`](docs/RESULTS.md).
 
@@ -48,13 +48,24 @@ Details, experiment history and limitations: [`docs/RESULTS.md`](docs/RESULTS.md
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate            # macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
-copy .env.example .env            # macOS/Linux: cp .env.example .env
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+python -m pip install -r requirements-app.txt
+cp .env.example .env              # Windows: copy .env.example .env
 # open .env and paste your OPENAI_API_KEY
+python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
+```
+
+In a second terminal:
+
+```bash
+cd web
+cp .env.example .env.local         # Windows: copy .env.example .env.local
+npm ci
+npm run dev
 ```
 
 Put the model weights in `weights/` (see [`weights/README.md`](weights/README.md)).
+Open <http://127.0.0.1:3000>; the local API runs at <http://127.0.0.1:8000>.
 
 | Run | Command |
 |---|---|
@@ -63,12 +74,20 @@ Put the model weights in `weights/` (see [`weights/README.md`](weights/README.md
 | One explanation in the terminal | `python scripts/demo_llm.py` |
 | LLM evaluation (v1 vs v2 vs v3) | `python scripts/eval_llm.py` |
 | Tests | `python -m pytest -q` |
+| Local smoke test | `python scripts/smoke_test.py http://127.0.0.1:8000 --frontend-url http://127.0.0.1:3000 --clip your_clip.mp4` |
 
 Without an API key the ruling is still produced, built from the contract and the Law 12
 rules, and labelled offline.
 
 Real test-set contracts go in `artifacts/contracts/` (shared privately — they are
 derived from the NDA dataset).
+
+## Presentation setup
+
+Hakam is delivered as a local presentation application. Keep the API and frontend
+terminals running on the presentation laptop, store `OPENAI_API_KEY` only in the
+gitignored `.env`, and keep the deterministic Arabic fallback available if the venue
+has no internet connection.
 
 ## Repository
 
@@ -79,6 +98,8 @@ derived from the NDA dataset).
 | `src/llm/` | Retrieval, prompts, generation, faithfulness check, Arabic lexicon |
 | `src/models/` | Datasets, multi-view multi-task training, metrics |
 | `src/data/` | Dataset loading, label derivation, preprocessing, augmentation |
+| `backend/` | FastAPI production API, runtime validation, and pipeline adapter |
+| `web/` | Next.js Arabic/English review interface |
 | `laws/` | 47 curated bilingual IFAB rule chunks and their prebuilt embeddings |
 | `notebooks/train_colab.ipynb` | Full training run on a Colab A100 |
 | `scripts/` | Frame caching, ensembling, contracts, LLM demo and evaluation |
